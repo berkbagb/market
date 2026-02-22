@@ -1,0 +1,41 @@
+name: market
+description: "Modern Market POS ve Stok Yönetim Sistemi"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.11.0 <4.0.0' # Terminalindeki 3.11.0 ile tam uyumlu hale getirildi
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  fl_chart: ^0.70.0
+
+  flutter_riverpod: ^2.6.1
+
+  sqflite: ^2.4.1
+  path: ^1.9.0
+
+  # Windows masaüstünde kamera kullanacaksan bu sürüm en stabil olanıdır
+  mobile_scanner: 5.2.2 
+
+  # Masaüstü için en stabil termal yazıcı paketleri
+  blue_thermal_printer: ^1.2.3 
+  esc_pos_utils_plus: ^2.0.3     
+
+  intl: ^0.19.0
+  window_manager: ^0.4.3
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.5
+  sqflite_common_ffi: ^2.4.0+2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0 # SDK 3.11 için lints 3.0 daha uygundur
+
+flutter:
+  uses-material-design: true
