@@ -87,7 +87,7 @@ class DashboardPage extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: IconButton(
@@ -146,10 +146,10 @@ class DashboardPage extends ConsumerWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.05),
+              color: color.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, 10),
             )
@@ -161,7 +161,7 @@ class DashboardPage extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1), 
+                color: color.withValues(alpha: 0.1), 
                 borderRadius: BorderRadius.circular(12)
               ),
               child: Icon(icon, color: color, size: 22),
@@ -192,7 +192,7 @@ class DashboardPage extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: data.when(
         data: (sales) => LineChart(_mainChartData(sales)),
@@ -205,12 +205,19 @@ class DashboardPage extends ConsumerWidget {
   LineChartData _mainChartData(List<double> sales) {
     if (sales.isEmpty) return LineChartData();
     
+    // Alt başlıklar için dinamik gün isimleri oluşturma
+    final List<String> last7Days = [];
+    for (int i = 6; i >= 0; i--) {
+      final date = DateTime.now().subtract(Duration(days: i));
+      last7Days.add(DateFormat('E', 'tr_TR').format(date));
+    }
+
     return LineChartData(
       gridData: FlGridData(
         show: true,
         drawVerticalLine: false,
         getDrawingHorizontalLine: (value) => FlLine(
-          color: Colors.white.withOpacity(0.03),
+          color: Colors.white.withValues(alpha: 0.03),
           strokeWidth: 1,
         ),
       ),
@@ -223,12 +230,11 @@ class DashboardPage extends ConsumerWidget {
             showTitles: true,
             reservedSize: 32,
             getTitlesWidget: (value, meta) {
-              const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
               int index = value.toInt();
-              if (index >= 0 && index < days.length) {
+              if (index >= 0 && index < last7Days.length) {
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(days[index], style: const TextStyle(color: Colors.white30, fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(last7Days[index], style: const TextStyle(color: Colors.white30, fontSize: 11, fontWeight: FontWeight.bold)),
                 );
               }
               return const SizedBox();
@@ -272,7 +278,7 @@ class DashboardPage extends ConsumerWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [const Color(0xFF6366F1).withOpacity(0.15), const Color(0xFF6366F1).withOpacity(0.0)],
+              colors: [const Color(0xFF6366F1).withValues(alpha: 0.15), const Color(0xFF6366F1).withValues(alpha: 0.0)],
             ),
           ),
         ),
@@ -319,14 +325,14 @@ class DashboardPage extends ConsumerWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () {}, // Aksiyon ekleyebilirsin
-                child: Icon(icon, color: color.withOpacity(0.8), size: 26),
+                onTap: () {},
+                child: Icon(icon, color: color.withValues(alpha: 0.8), size: 26),
               ),
             ),
           ),

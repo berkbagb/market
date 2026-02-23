@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:market/features/pos/market_provider.dart';
-import 'package:market/core/models/product_model.dart'; 
+import 'package:market/core/models/product_model.dart';
 
 class InventoryScreen extends ConsumerWidget {
   const InventoryScreen({super.key});
@@ -13,222 +13,233 @@ class InventoryScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F111A),
-      body: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            const SizedBox(height: 32),
-            productsAsync.when(
-              data: (products) => _buildStatCards(products),
-              loading: () => const SizedBox(
-                height: 100, 
-                child: Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-              ),
-              error: (e, __) => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: 32),
-            Expanded(
-              child: _buildMainTable(productsAsync),
-            ),
-          ],
-        ),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1D2D),
+        elevation: 0,
+        title: Text("Stok Yönetimi", 
+          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle, color: Color(0xFF6366F1), size: 32),
+            onPressed: () => _openAddProductDialog(context, ref),
+          ),
+          const SizedBox(width: 15),
+        ],
       ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Stok Envanteri",
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 32, 
-                fontWeight: FontWeight.w800, 
-                color: Colors.white,
-                letterSpacing: -1,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Ürün durumlarını ve stok seviyelerini gerçek zamanlı takip edin.",
-              style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 14),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            _headerActionBtn(Icons.file_download_outlined, "Dışa Aktar", () {}),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text("Yeni Ürün Ekle", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _headerActionBtn(IconData icon, String label, VoidCallback onTap) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 20),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white70,
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
-
-  Widget _buildStatCards(List<Product> products) {
-    // Null kontrolleri (?? 0) kaldırıldı çünkü Product modeli artık kesin değerler dönüyor
-    final totalValue = products.fold<double>(0, (sum, p) => sum + (p.sellPrice * p.stock));
-    final lowStockCount = products.where((p) => p.stock < 10).length;
-
-    return Row(
-      children: [
-        _statCard("Toplam Çeşit", products.length.toString(), Icons.inventory_2_outlined, Colors.blueAccent),
-        const SizedBox(width: 20),
-        _statCard("Kritik Stok", lowStockCount.toString(), Icons.auto_graph_rounded, Colors.orangeAccent),
-        const SizedBox(width: 20),
-        _statCard("Envanter Değeri", "₺${totalValue.toStringAsFixed(0)}", Icons.account_balance_wallet_outlined, Colors.greenAccent),
-      ],
-    );
-  }
-
-  Widget _statCard(String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1D2D),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(value, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainTable(AsyncValue<List<Product>> productsAsync) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D2D),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: productsAsync.when(
-          data: (products) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Theme(
-              data: ThemeData.dark().copyWith(dividerColor: Colors.white10),
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.02)),
-                dataRowMaxHeight: 70,
-                columnSpacing: 24,
-                columns: [
-                  DataColumn(label: _tableHeader("ÜRÜN BİLGİSİ")),
-                  DataColumn(label: _tableHeader("BARKOD")),
-                  DataColumn(label: _tableHeader("SATIŞ FİYATI")),
-                  DataColumn(label: _tableHeader("STOK")),
-                  DataColumn(label: _tableHeader("DURUM")),
-                  const DataColumn(label: Text("")),
-                ],
-                rows: products.map((p) => DataRow(
-                  cells: [
-                    DataCell(Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold))),
-                    DataCell(Text(p.barcode, style: const TextStyle(color: Colors.white38, fontFamily: 'monospace'))),
-                    DataCell(Text("₺${p.sellPrice.toStringAsFixed(2)}")),
-                    DataCell(Text("${p.stock} ${p.unit}")),
-                    // Hatalı olan p.stock ?? 0 kısımları temizlendi
-                    DataCell(_statusBadge(p.stock.toDouble())),
-                    DataCell(
-                      IconButton(
-                        icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF6366F1)),
-                        onPressed: () {},
-                      ),
-                    ),
-                  ],
-                )).toList(),
+      body: Column(
+        children: [
+          // Arama Çubuğu (Sabit Genişlik ve Ortalanmış)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            color: const Color(0xFF1A1D2D),
+            child: Center(
+              child: SizedBox(
+                width: 600,
+                child: TextField(
+                  onChanged: (v) => ref.read(productsProvider.notifier).filterProducts(v),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Ürün veya Barkod Ara...",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF6366F1)),
+                    filled: true,
+                    fillColor: const Color(0xFF0F111A),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
               ),
             ),
           ),
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
-          error: (e, s) => Center(child: Text("Hata oluştu: $e", style: const TextStyle(color: Colors.red))),
+          Expanded(
+            child: productsAsync.when(
+              data: (list) => ListView.builder(
+                padding: const EdgeInsets.all(20),
+                itemCount: list.length,
+                itemBuilder: (ctx, i) => _buildProductCard(ref, list[i], context),
+              ),
+              loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
+              error: (e, s) => Center(child: Text("Hata: $e", style: const TextStyle(color: Colors.red))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductCard(WidgetRef ref, Product p, BuildContext context) {
+    return Card(
+      color: const Color(0xFF1A1D2D),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        title: Text(p.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        subtitle: Text("Barkod: ${p.barcode}", style: const TextStyle(color: Colors.white38, fontSize: 12)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text("₺${p.sellPrice.toStringAsFixed(2)}", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                Text("Stok: ${p.stock}", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+            const SizedBox(width: 15),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: () => _confirmDelete(context, ref, p),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _tableHeader(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.plusJakartaSans(
-        color: const Color(0xFF6366F1), 
-        fontWeight: FontWeight.w800, 
-        fontSize: 12,
-        letterSpacing: 1,
+  // --- ÜRÜN EKLEME / GÜNCELLEME DİALOĞU ---
+  void _openAddProductDialog(BuildContext context, WidgetRef ref) {
+    final nameC = TextEditingController();
+    final barC = TextEditingController();
+    final priceC = TextEditingController();
+    final stockC = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D2D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Ürün İşlemi", textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _dialogInput(nameC, "Ürün Adı (Yeni Ürünse)"),
+              _dialogInput(barC, "Barkod"),
+              Row(
+                children: [
+                  Expanded(child: _dialogInput(priceC, "Yeni Fiyat", isNum: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _dialogInput(stockC, "Eklenecek Stok", isNum: true)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Vazgeç", style: TextStyle(color: Colors.white38))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
+            onPressed: () async {
+              final barcode = barC.text.trim();
+              if (barcode.isEmpty) return;
+
+              final products = ref.read(productsProvider).value ?? [];
+              final existing = products.where((p) => p.barcode == barcode).firstOrNull;
+
+              if (existing != null) {
+                // EĞER ÜRÜN VARSA ONAY PENCERESİNE GİT
+                final addedStock = int.tryParse(stockC.text) ?? 0;
+                final newPrice = double.tryParse(priceC.text) ?? 0.0;
+                
+                Navigator.pop(context); // Önceki dialoğu kapat
+                _showUpdateConfirmation(context, ref, existing, addedStock, newPrice);
+              } else {
+                // ÜRÜN YOKSA DİREKT EKLE
+                final p = Product(
+                  name: nameC.text.isEmpty ? "İsimsiz Ürün" : nameC.text,
+                  barcode: barcode,
+                  buyPrice: 0,
+                  sellPrice: double.tryParse(priceC.text) ?? 0,
+                  stock: int.tryParse(stockC.text) ?? 0,
+                  minStockLevel: 5, taxRate: 20, unit: "Adet", category: "Genel",
+                );
+                await ref.read(productsProvider.notifier).addProduct(p);
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text("Kaydet", style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _statusBadge(double stock) {
-    final bool isLow = stock < 10 && stock > 0;
-    final bool isCritical = stock <= 0;
-    
-    Color color = isCritical ? Colors.red : (isLow ? Colors.orange : Colors.green);
-    String label = isCritical ? "Tükendi" : (isLow ? "Kritik" : "Stokta");
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+  // --- GÜNCELLEME ONAYI (EMİN MİSİN ŞEYİ) ---
+  void _showUpdateConfirmation(BuildContext context, WidgetRef ref, Product existing, int added, double newPrice) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D2D),
+        title: const Text("Ürün Güncellensin mi?", style: TextStyle(color: Colors.orangeAccent)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Ürün: ${existing.name}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text("Yeni Stok: ${existing.stock + added} (Mevcut: ${existing.stock})", style: const TextStyle(color: Colors.white70)),
+            if (newPrice > 0)
+              Text("Yeni Fiyat: ₺$newPrice (Eski: ₺${existing.sellPrice})", style: const TextStyle(color: Colors.greenAccent)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Hayır", style: TextStyle(color: Colors.white24))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
+            onPressed: () async {
+              final updated = existing.copyWith(
+                stock: existing.stock + added,
+                sellPrice: newPrice > 0 ? newPrice : existing.sellPrice,
+              );
+              await ref.read(productsProvider.notifier).updateProduct(updated);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text("Evet, Güncelle", style: TextStyle(color: Colors.black)),
+          ),
+        ],
       ),
-      child: Text(
-        label, 
-        style: TextStyle(color: color.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.bold)
+    );
+  }
+
+  // --- SİLME ONAYI ---
+  void _confirmDelete(BuildContext context, WidgetRef ref, Product p) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D2D),
+        title: const Text("Ürünü Sil?", style: TextStyle(color: Colors.redAccent)),
+        content: Text("${p.name} ürünü kalıcı olarak silinecek. Emin misiniz?", style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Vazgeç")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              ref.read(productsProvider.notifier).deleteProduct(p.id!);
+              Navigator.pop(context);
+            },
+            child: const Text("Evet, Sil"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dialogInput(TextEditingController c, String l, {bool isNum = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: c,
+        keyboardType: isNum ? TextInputType.number : TextInputType.text,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: l,
+          labelStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+          filled: true,
+          fillColor: const Color(0xFF0F111A),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        ),
       ),
     );
   }

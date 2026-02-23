@@ -4,6 +4,7 @@ import 'package:market/features/pos/pos_screen.dart';
 import 'package:market/features/dashboard/dashboard_page.dart';
 import 'package:market/features/inventory/inventory_screen.dart';
 import 'package:market/features/customers/customer_screen.dart';
+import 'package:market/features/dashboard/summary_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -16,13 +17,18 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   // Sayfalar arası geçişte state korunması için IndexedStack kullanılır
+  // final List<Widget> _screens = [
+  //   const PosScreen(),
+  //   const DashboardPage(), 
+  //   const InventoryScreen(), 
+  //   const CustomerScreen(), 
+  // ];
   final List<Widget> _screens = [
     const PosScreen(),
-    const DashboardPage(), 
+    const SummaryScreen(), // DashboardPage yerine SummaryScreen yazdık
     const InventoryScreen(), 
     const CustomerScreen(), 
   ];
-
   @override
   Widget build(BuildContext context) {
     // V3 Kurumsal Renk Paleti (ThemeData ile uyumlu)

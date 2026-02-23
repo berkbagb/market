@@ -5,10 +5,10 @@ class Product {
   final double buyPrice;
   final double sellPrice;
   final int stock;
-  final String category;
+  final int minStockLevel;
+  final double taxRate;
   final String unit;
-  final double taxRate;      // KDV Oranı (Örn: 20.0)
-  final int minStockLevel;   // Kritik Stok Seviyesi
+  final String category;
 
   Product({
     this.id,
@@ -17,62 +17,13 @@ class Product {
     required this.buyPrice,
     required this.sellPrice,
     required this.stock,
-    required this.category,
+    required this.minStockLevel,
+    required this.taxRate,
     required this.unit,
-    this.taxRate = 20.0,
-    this.minStockLevel = 5,
+    required this.category,
   });
 
-  // --- HESAPLANMIŞ ALANLAR (Computed Properties) ---
-
-  /// Ürünün kritik stok seviyesinde olup olmadığını kontrol eder
-  bool get isLowStock => stock <= minStockLevel;
-
-  /// Ürün başına net kâr tutarı
-  double get profitPerUnit => sellPrice - buyPrice;
-
-  /// Kâr marjı yüzdesi (Yüzdelik formatta)
-  double get profitMargin {
-    if (buyPrice == 0) return 0;
-    return ((sellPrice - buyPrice) / buyPrice) * 100;
-  }
-
-  /// KDV dahil toplam satış fiyatı (Eğer sellPrice KDV hariç tutuluyorsa kullanılır)
-  /// Marketlerde genelde sellPrice KDV dahil girilir, bu fonksiyon opsiyoneldir.
-  double get sellPriceWithTax => sellPrice * (1 + (taxRate / 100));
-
-  // --- JSON / MAP DÖNÜŞÜMLERİ ---
-
-  Map<String, dynamic> toMap() {
-    return {
-      if (id != null) 'id': id,
-      'name': name,
-      'barcode': barcode,
-      'buyPrice': buyPrice,
-      'sellPrice': sellPrice,
-      'stock': stock,
-      'category': category,
-      'unit': unit,
-      'taxRate': taxRate,
-      'minStockLevel': minStockLevel,
-    };
-  }
-
-  factory Product.fromMap(Map<String, dynamic> map) {
-    return Product(
-      id: map['id'] as int?,
-      name: map['name'] ?? '',
-      barcode: map['barcode'] ?? '',
-      buyPrice: (map['buyPrice'] ?? 0.0).toDouble(),
-      sellPrice: (map['sellPrice'] ?? 0.0).toDouble(),
-      stock: map['stock'] ?? 0,
-      category: map['category'] ?? 'Genel',
-      unit: map['unit'] ?? 'Adet',
-      taxRate: (map['taxRate'] ?? 20.0).toDouble(),
-      minStockLevel: map['minStockLevel'] ?? 5,
-    );
-  }
-
+  // HATAYI ÇÖZEN KISIM BURASI:
   Product copyWith({
     int? id,
     String? name,
@@ -80,10 +31,10 @@ class Product {
     double? buyPrice,
     double? sellPrice,
     int? stock,
-    String? category,
-    String? unit,
-    double? taxRate,
     int? minStockLevel,
+    double? taxRate,
+    String? unit,
+    String? category,
   }) {
     return Product(
       id: id ?? this.id,
@@ -92,10 +43,41 @@ class Product {
       buyPrice: buyPrice ?? this.buyPrice,
       sellPrice: sellPrice ?? this.sellPrice,
       stock: stock ?? this.stock,
-      category: category ?? this.category,
-      unit: unit ?? this.unit,
-      taxRate: taxRate ?? this.taxRate,
       minStockLevel: minStockLevel ?? this.minStockLevel,
+      taxRate: taxRate ?? this.taxRate,
+      unit: unit ?? this.unit,
+      category: category ?? this.category,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'barcode': barcode,
+      'buyPrice': buyPrice,
+      'sellPrice': sellPrice,
+      'stock': stock,
+      'minStockLevel': minStockLevel,
+      'taxRate': taxRate,
+      'unit': unit,
+      'category': category,
+    };
+  }
+
+  factory Product.fromMap(Map<String, dynamic> map) {
+    // Burası hatanın çözüldüğü yer: Gelen veri num (double/int) ise toInt() veya toDouble() ile zorluyoruz
+    return Product(
+      id: map['id'] as int?,
+      name: map['name']?.toString() ?? '',
+      barcode: map['barcode']?.toString() ?? '',
+      buyPrice: (map['buyPrice'] as num?)?.toDouble() ?? 0.0,
+      sellPrice: (map['sellPrice'] as num?)?.toDouble() ?? 0.0,
+      stock: (map['stock'] as num?)?.toInt() ?? 0,
+      minStockLevel: (map['minStockLevel'] as num?)?.toInt() ?? 0,
+      taxRate: (map['taxRate'] as num?)?.toDouble() ?? 0.0,
+      unit: map['unit']?.toString() ?? 'Adet',
+      category: map['category']?.toString() ?? 'Genel',
     );
   }
 }

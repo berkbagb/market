@@ -6,10 +6,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:market/core/database_helper.dart';
 import 'package:market/main_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:intl/date_symbol_data_local.dart'; // 1. BU ŞART
 
 void main() async {
   // Flutter binding'i garantiye al
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. DİL VE TARİH AYARLARINI BAŞLAT (Hatanın asıl çözümü)
+  await initializeDateFormatting('tr_TR', null);
 
   // Desktop (Windows/Linux) veritabanı desteğini başlat
   if (Platform.isWindows || Platform.isLinux) {
@@ -70,7 +74,6 @@ class MarketApp extends StatelessWidget {
         ),
       ),
 
-      // withOpacity yerine withValues kullanıldı
       cardTheme: CardThemeData(
         elevation: 0,
         clipBehavior: Clip.antiAlias,
@@ -142,6 +145,8 @@ class MarketApp extends StatelessWidget {
       title: 'Market POS Pro',
       debugShowCheckedModeBanner: false,
       theme: premiumDarkTheme,
+      // Türkçe dil desteğini MaterialApp'e de tanıtıyoruz
+      locale: const Locale('tr', 'TR'),
       home: const MainScreen(), 
     );
   }
