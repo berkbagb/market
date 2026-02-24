@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:market/features/pos/market_provider.dart';
-import 'package:market/features/dashboard/summary_screen.dart'; // globalTaxProvider burada tanımlıydı
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -48,15 +47,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-            ),
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white),
             const SizedBox(width: 12),
-            Text(
-              message,
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
-            ),
+            Text(message, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           ],
         ),
         backgroundColor: isError ? Colors.redAccent : const Color(0xFF10B981),
@@ -70,11 +63,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
-  final cartItems = ref.watch(cartProvider);
-  final cartNotifier = ref.watch(cartProvider.notifier);
-  final activeTax = ref.watch(globalTaxProvider);
-  final store = ref.watch(storeInfoProvider);
-    // AYARLARDAKİ KDV'Yİ BURADAN TAKİP EDİYORUZ
+    final cartItems = ref.watch(cartProvider);
+    final cartNotifier = ref.watch(cartProvider.notifier);
+    final activeTax = ref.watch(globalTaxProvider);
+    final store = ref.watch(storeInfoProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF020617),
@@ -94,15 +86,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               ],
             ),
           ),
-          // Sağ Taraf: Özet ve Ödeme (activeTax bilgisini gönderiyoruz)
           _buildCheckoutSidebar(cartItems, cartNotifier, activeTax),
         ],
       ),
     );
   }
-
-  // ... [ _buildTopBar, _buildStatusBadge, _buildBarcodeSection aynı kalıyor ] ...
-  // Not: Kısalık için aynı olanları atlıyorum, sen sendekiyle devam et.
 
   Widget _buildTopBar(StoreInfo store) {
     return Container(
@@ -112,24 +100,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "TERMINAL #01",
-                style: GoogleFonts.plusJakartaSans(
-                  color: const Color(0xFF6366F1),
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
-                  fontSize: 12,
-                ),
-              ),
+              Text("TERMINAL #01", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF6366F1), fontWeight: FontWeight.w800, letterSpacing: 2, fontSize: 12)),
               const SizedBox(height: 4),
-              Text(
-                store.name, // "Hızlı Satış Paneli" yerine artık ayarlardaki isim yazacak
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
+              Text(store.name, style: GoogleFonts.plusJakartaSans(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white)),
             ],
           ),
           const Spacer(),
@@ -151,14 +124,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         children: [
           const CircleAvatar(radius: 4, backgroundColor: Color(0xFF10B981)),
           const SizedBox(width: 10),
-          Text(
-            "SİSTEM AKTİF",
-            style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFF10B981),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text("SİSTEM AKTİF", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -172,35 +138,21 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         focusNode: _barcodeFocusNode,
         autofocus: true,
         onSubmitted: _handleBarcodeSubmit,
-        style: GoogleFonts.plusJakartaSans(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
+        style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: "Ürün barkodunu tarayın...",
           hintStyle: TextStyle(color: Colors.white.withOpacity(0.15)),
-          prefixIcon: const Icon(
-            Icons.qr_code_scanner_rounded,
-            color: Color(0xFF6366F1),
-            size: 26,
-          ),
+          prefixIcon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF6366F1), size: 26),
           filled: true,
           fillColor: const Color(0xFF0F172A),
           contentPadding: const EdgeInsets.all(28),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(24),
-            borderSide: BorderSide.none,
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
         ),
       ),
     );
   }
 
-  Widget _buildCartTable(
-    List<Map<String, dynamic>> items,
-    CartNotifier notifier,
-  ) {
+  Widget _buildCartTable(List<Map<String, dynamic>> items, CartNotifier notifier) {
     return ListView.builder(
       controller: _cartScrollController,
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 32),
@@ -210,10 +162,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
-            borderRadius: BorderRadius.circular(20),
-          ),
+          decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(20)),
           child: Row(
             children: [
               const Icon(Icons.shopping_bag_outlined, color: Color(0xFF6366F1)),
@@ -222,36 +171,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item['name'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      "${item['price']} ₺",
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 12,
-                      ),
-                    ),
+                    Text(item['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    Text("${item['price']} ₺", style: const TextStyle(color: Colors.white38, fontSize: 12)),
                   ],
                 ),
               ),
               _buildQuantityControls(item, notifier),
               const SizedBox(width: 20),
-              Text(
-                "${(item['price'] * item['qty']).toStringAsFixed(2)} ₺",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.white24),
-                onPressed: () => notifier.removeFromCart(item['barcode']),
-              ),
+              Text("${(item['price'] * item['qty']).toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              IconButton(icon: const Icon(Icons.close, color: Colors.white24), onPressed: () => notifier.removeFromCart(item['barcode'])),
             ],
           ),
         );
@@ -262,36 +190,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   Widget _buildQuantityControls(Map item, CartNotifier notifier) {
     return Row(
       children: [
-        IconButton(
-          onPressed: () => notifier.updateQuantity(
-            item['barcode'],
-            (item['qty'] - 1).clamp(1, 99),
-          ),
-          icon: const Icon(Icons.remove, color: Color(0xFF6366F1)),
-        ),
-        Text(
-          "${item['qty']}",
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        IconButton(
-          onPressed: () =>
-              notifier.updateQuantity(item['barcode'], item['qty'] + 1),
-          icon: const Icon(Icons.add, color: Color(0xFF6366F1)),
-        ),
+        IconButton(onPressed: () => notifier.updateQuantity(item['barcode'], (item['qty'] - 1).clamp(1, 99)), icon: const Icon(Icons.remove, color: Color(0xFF6366F1))),
+        Text("${item['qty']}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        IconButton(onPressed: () => notifier.updateQuantity(item['barcode'], item['qty'] + 1), icon: const Icon(Icons.add, color: Color(0xFF6366F1))),
       ],
     );
   }
 
-  // --- HESAPLAMA MANTIĞI BURADA GÜNCELLENDİ ---
-  Widget _buildCheckoutSidebar(
-    List<Map<String, dynamic>> cartItems,
-    CartNotifier notifier,
-    double taxRate,
-  ) {
-    // Toplam üzerinden KDV ayıklama: (Toplam / (1 + (Oran/100)))
+  Widget _buildCheckoutSidebar(List<Map<String, dynamic>> cartItems, CartNotifier notifier, double taxRate) {
     final double total = notifier.totalAmount;
     final double netFiyat = total / (1 + (taxRate / 100));
     final double kdvTutari = total - netFiyat;
@@ -307,79 +213,101 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "ÖDEME DETAYI",
-              style: GoogleFonts.plusJakartaSans(
-                color: const Color(0xFF6366F1),
-                fontWeight: FontWeight.w900,
-                letterSpacing: 2,
-                fontSize: 11,
-              ),
-            ),
+            Text("ÖDEME DETAYI", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF6366F1), fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 11)),
             const SizedBox(height: 32),
-
-            // STATİK 1.2 YERİNE taxRate KULLANILDI
-            _summaryRow(
-              "Ara Toplam (KDV Hariç)",
-              "${netFiyat.toStringAsFixed(2)} ₺",
-            ),
-            _summaryRow(
-              "KDV (%${taxRate.toInt()})",
-              "${kdvTutari.toStringAsFixed(2)} ₺",
-              isSub: true,
-            ),
-
+            _summaryRow("Ara Toplam (KDV Hariç)", "${netFiyat.toStringAsFixed(2)} ₺"),
+            _summaryRow("KDV (%${taxRate.toInt()})", "${kdvTutari.toStringAsFixed(2)} ₺", isSub: true),
             const SizedBox(height: 24),
             const Divider(color: Colors.white10),
             const SizedBox(height: 24),
-            Text(
-              "GENEL TOPLAM",
-              style: GoogleFonts.plusJakartaSans(
-                color: Colors.white38,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
+            Text("GENEL TOPLAM", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontWeight: FontWeight.w700, fontSize: 13)),
             const SizedBox(height: 8),
             FittedBox(
-              child: Text(
-                "${total.toStringAsFixed(2)} ₺",
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 68,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF10B981),
-                  letterSpacing: -2,
+              child: Text("${total.toStringAsFixed(2)} ₺", style: GoogleFonts.plusJakartaSans(fontSize: 68, fontWeight: FontWeight.w900, color: const Color(0xFF10B981), letterSpacing: -2)),
+            ),
+            const Spacer(),
+            
+            // --- ÖDEME BUTONLARI ---
+            _paymentActionBtn("NAKİT (F10)", Icons.payments_rounded, const Color(0xFF10B981), () => _handleComplete(cartItems, notifier, "NAKİT")),
+            const SizedBox(height: 12),
+            _paymentActionBtn("KREDİ KARTI (F11)", Icons.credit_card_rounded, const Color(0xFF6366F1), () => _handleComplete(cartItems, notifier, "KART")),
+            const SizedBox(height: 12),
+            
+            // YENİ: VERESİYE BUTONU
+            SizedBox(
+              width: double.infinity,
+              height: 60,
+              child: ElevatedButton.icon(
+                onPressed: cartItems.isEmpty ? null : () => _showCustomerSelectionDialog(context, ref, total),
+                icon: const Icon(Icons.person_search_rounded),
+                label: const Text("VERESİYE / BORÇ"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.withOpacity(0.1),
+                  foregroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  side: const BorderSide(color: Colors.orange, width: 1),
                 ),
               ),
             ),
-            const Spacer(), // Burada spacer kullanabiliriz çünkü artık Sidebar SingleChild içinde değil
-            _paymentActionBtn(
-              "NAKİT (F10)",
-              Icons.payments_rounded,
-              const Color(0xFF10B981),
-              () => _handleComplete(cartItems, notifier, "NAKİT"),
-            ),
-            const SizedBox(height: 16),
-            _paymentActionBtn(
-              "KREDİ KARTI (F11)",
-              Icons.credit_card_rounded,
-              const Color(0xFF6366F1),
-              () => _handleComplete(cartItems, notifier, "KART"),
-            ),
-            const SizedBox(height: 32),
+            
+            const SizedBox(height: 24),
             Center(
               child: TextButton(
                 onPressed: () => notifier.clear(),
-                child: Text(
-                  "İŞLEMİ İPTAL ET",
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.redAccent.withOpacity(0.5),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                child: Text("İŞLEMİ İPTAL ET", style: GoogleFonts.plusJakartaSans(color: Colors.redAccent.withOpacity(0.5), fontWeight: FontWeight.w800)),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // --- MÜŞTERİ SEÇİM DİALOGU ---
+  void _showCustomerSelectionDialog(BuildContext context, WidgetRef ref, double total) {
+    final customers = ref.watch(customerProvider);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Text("Müşteri Seçin", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: 450,
+          height: 500,
+          child: Column(
+            children: [
+              const Text("Seçilen müşterinin hesabına borç kaydedilecektir.", style: TextStyle(color: Colors.white38, fontSize: 12)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: customers.isEmpty 
+                ? const Center(child: Text("Kayıtlı müşteri yok!", style: TextStyle(color: Colors.white24)))
+                : ListView.separated(
+                    itemCount: customers.length,
+                    separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                    itemBuilder: (context, index) {
+                      final c = customers[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                          child: Text(c.name[0], style: const TextStyle(color: Color(0xFF6366F1))),
+                        ),
+                        title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        subtitle: Text(c.phone, style: const TextStyle(color: Colors.white38)),
+                        trailing: Text("${c.balance.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        onTap: () {
+                          ref.read(customerProvider.notifier).updateBalance(c.id, total);
+                          ref.read(cartProvider.notifier).clear();
+                          Navigator.pop(context);
+                          _showFeedback("${c.name} hesabına borç işlendi.");
+                        },
+                      );
+                    },
+                  ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -391,36 +319,17 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              color: isSub ? Colors.white38 : Colors.white70,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(label, style: GoogleFonts.plusJakartaSans(color: isSub ? Colors.white38 : Colors.white70, fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(value, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
 
-  Widget _paymentActionBtn(
-    String label,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _paymentActionBtn(String label, IconData icon, Color color, VoidCallback onTap) {
     return SizedBox(
       width: double.infinity,
-      height: 80,
+      height: 65,
       child: ElevatedButton.icon(
         onPressed: onTap,
         icon: Icon(icon),
@@ -428,19 +337,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
     );
   }
 
-  void _handleComplete(
-    List<Map<String, dynamic>> items,
-    CartNotifier n,
-    String method,
-  ) async {
+  void _handleComplete(List<Map<String, dynamic>> items, CartNotifier n, String method) async {
     if (items.isEmpty) {
       _showFeedback("Lütfen ürün ekleyin!", isError: true);
       return;
@@ -450,12 +353,6 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Icon(
-        Icons.barcode_reader,
-        size: 80,
-        color: Colors.white.withOpacity(0.05),
-      ),
-    );
+    return Center(child: Icon(Icons.barcode_reader, size: 80, color: Colors.white.withOpacity(0.05)));
   }
 }

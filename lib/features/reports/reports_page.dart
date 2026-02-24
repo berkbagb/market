@@ -73,7 +73,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   Widget build(BuildContext context) {
     const Color primaryBlue = Color(0xFF6366F1);
     const Color bgDark = Color(0xFF020617);
-    const Color cardBg = Color(0xFF0F172A);
 
     return Scaffold(
       backgroundColor: bgDark,

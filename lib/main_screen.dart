@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:market/features/pos/pos_screen.dart';
-import 'package:market/features/dashboard/dashboard_page.dart';
 import 'package:market/features/inventory/inventory_screen.dart';
 import 'package:market/features/customers/customer_screen.dart';
 import 'package:market/features/dashboard/summary_screen.dart';

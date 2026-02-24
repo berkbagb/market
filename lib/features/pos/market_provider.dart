@@ -1,45 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:market/core/database_helper.dart';
 import 'package:market/core/models/product_model.dart';
 import 'package:market/core/printer_service.dart';
 
 // --- GLOBAL PROVIDERS ---
 
-/// Arama terimini tutan state
 final searchQueryProvider = StateProvider<String>((ref) => "");
 
-/// Kategori listesini çeken provider
 final categoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return await DatabaseHelper.instance.getAllCategories();
 });
 
-/// Sepet durumunu yöneten ana provider
 final cartProvider = StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
   return CartNotifier(ref);
 });
 
-/// Ürün listesini yöneten provider
-/// ÖNEMLİ: ref.watch(searchQueryProvider) buradan kaldırıldı çünkü notifier içinde filtreleme yapacağız.
-/// Bu sayede her harf yazıldığında notifier baştan yaratılmaz, sadece liste filtrelenir.
 final productsProvider = StateNotifierProvider<ProductsNotifier, AsyncValue<List<Product>>>((ref) {
   return ProductsNotifier();
 });
 
-/// Satış geçmişi provider'ı
 final salesHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return await DatabaseHelper.instance.getSalesHistory();
 });
 
-// Varsayılan KDV oranını tutan provider
 final globalTaxProvider = StateProvider<double>((ref) => 20.0);
 
-/// Stok hareket günlüklerini çeken provider
 final stockLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return await DatabaseHelper.instance.getStockLogs();
 });
 
-/// Günlük ciro ve kar özet provider'ı
+// Günlük ciro ve kar özet provider'ı
 final todayStatsProvider = FutureProvider<Map<String, double>>((ref) async {
   final allSales = await ref.watch(salesHistoryProvider.future);
   final now = DateTime.now();
@@ -62,7 +54,7 @@ final todayStatsProvider = FutureProvider<Map<String, double>>((ref) async {
   return {'revenue': revenue, 'profit': profit};
 });
 
-/// Haftalık grafik verisi
+// Haftalık grafik verisi
 final weeklySalesProvider = FutureProvider<List<double>>((ref) async {
   final allSales = await ref.watch(salesHistoryProvider.future);
   final now = DateTime.now();
@@ -81,27 +73,15 @@ final weeklySalesProvider = FutureProvider<List<double>>((ref) async {
   return dailyTotals;
 });
 
-/// Müşteri Listesi Provider
-final customersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final db = await DatabaseHelper.instance.database;
-  return await db.query('customers', orderBy: 'name ASC');
-});
+// --- MODELS ---
 
-
-
-// Mağaza Bilgileri Modeli
 class StoreInfo {
   final String name;
   final String phone;
   final String address;
   final String footerNote;
 
-  StoreInfo({
-    required this.name,
-    required this.phone,
-    required this.address,
-    required this.footerNote,
-  });
+  StoreInfo({required this.name, required this.phone, required this.address, required this.footerNote});
 
   StoreInfo copyWith({String? name, String? phone, String? address, String? footerNote}) {
     return StoreInfo(
@@ -113,7 +93,29 @@ class StoreInfo {
   }
 }
 
-// Mağaza bilgilerini tutan Provider
+class Customer {
+  final String id;
+  final String name;
+  final String phone;
+  final double balance;
+
+  Customer({required this.id, required this.name, required this.phone, this.balance = 0.0});
+
+  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'phone': phone, 'balance': balance};
+
+  factory Customer.fromMap(Map<dynamic, dynamic> map) => Customer(
+    id: map['id'], 
+    name: map['name'], 
+    phone: map['phone'], 
+    balance: (map['balance'] as num).toDouble(),
+  );
+
+  Customer copyWith({double? balance}) => Customer(
+    id: id, name: name, phone: phone, balance: balance ?? this.balance,
+  );
+}
+
+// --- STORE INFO PROVIDER ---
 final storeInfoProvider = StateProvider<StoreInfo>((ref) => StoreInfo(
   name: "BERK MARKET",
   phone: "05XX XXX XX XX",
@@ -121,11 +123,9 @@ final storeInfoProvider = StateProvider<StoreInfo>((ref) => StoreInfo(
   footerNote: "Bizi tercih ettiğiniz için teşekkürler!",
 ));
 
-
 // --- PRODUCTS NOTIFIER ---
-
+// --- PRODUCTS NOTIFIER ---
 class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
-  // Veritabanındaki tüm ürünleri hafızada tutmak için
   List<Product> _allProducts = [];
   
   ProductsNotifier() : super(const AsyncValue.loading()) {
@@ -143,7 +143,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
     }
   }
 
-  /// Arama işlemini state üzerinden anlık yapar (Hızlı Filtreleme)
+  /// Arama işlemi
   void filterProducts(String query) {
     if (query.isEmpty) {
       state = AsyncValue.data(_allProducts);
@@ -157,34 +157,85 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
     }
   }
 
+  // --- EKSİK OLAN VE HATAYA SEBEP OLAN METODLAR BURADA ---
+
   Future<void> addProduct(Product product) async {
-    await DatabaseHelper.instance.insertProduct(product.toMap());
-    await loadProducts(); // Listeyi güncelle
+    try {
+      await DatabaseHelper.instance.insertProduct(product.toMap());
+      await loadProducts(); // Listeyi yeniden yükle ki ekranda hemen görünsün
+    } catch (e) {
+      debugPrint("Ürün ekleme hatası: $e");
+      rethrow;
+    }
   }
 
   Future<void> updateProduct(Product product) async {
-    if (product.id != null) {
-      await DatabaseHelper.instance.updateProduct(product.toMap());
-      await loadProducts();
+    try {
+      if (product.id != null) {
+        await DatabaseHelper.instance.updateProduct(product.toMap());
+        await loadProducts(); // Güncel halini çek
+      }
+    } catch (e) {
+      debugPrint("Ürün güncelleme hatası: $e");
+      rethrow;
     }
   }
 
   Future<void> deleteProduct(int id) async {
-    await DatabaseHelper.instance.deleteProduct(id);
-    await loadProducts();
+    try {
+      await DatabaseHelper.instance.deleteProduct(id);
+      await loadProducts(); // Silindikten sonra listeyi tazele
+    } catch (e) {
+      debugPrint("Ürün silme hatası: $e");
+      rethrow;
+    }
+  }
+}
+// --- CUSTOMER NOTIFIER (HIVE) ---
+class CustomerNotifier extends StateNotifier<List<Customer>> {
+  CustomerNotifier() : super([]) { _loadFromHive(); }
+
+  final _box = Hive.box('customers');
+
+  void _loadFromHive() {
+    final data = _box.values.map((e) => Customer.fromMap(e)).toList();
+    state = data;
+  }
+
+  void addCustomer(String name, String phone) {
+    final newCustomer = Customer(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      phone: phone,
+    );
+    state = [...state, newCustomer];
+    _box.put(newCustomer.id, newCustomer.toMap());
+  }
+
+  void updateBalance(String id, double amount) {
+    state = [
+      for (final c in state)
+        if (c.id == id) _updateAndSave(c, amount) else c
+    ];
+  }
+
+  Customer _updateAndSave(Customer c, double amount) {
+    final updated = c.copyWith(balance: c.balance + amount);
+    _box.put(updated.id, updated.toMap());
+    return updated;
   }
 }
 
-// --- CART NOTIFIER ---
+final customerProvider = StateNotifierProvider<CustomerNotifier, List<Customer>>((ref) {
+  return CustomerNotifier();
+});
 
+// --- CART NOTIFIER ---
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   final Ref ref;
   CartNotifier(this.ref) : super([]);
 
-  bool get isEmpty => state.isEmpty;
-
   double get totalAmount => state.fold(0.0, (sum, item) => sum + (item['price'] * item['qty']));
-  
   double get totalProfit => state.fold(0.0, (sum, item) {
     final buyPrice = (item['buyPrice'] as num?)?.toDouble() ?? 0.0;
     return sum + ((item['price'] - buyPrice) * item['qty']);
@@ -217,62 +268,45 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     return true;
   }
 
-  Future<void> updateQuantity(String barcode, num newQty) async {
-    if (newQty <= 0) {
-      removeFromCart(barcode);
-      return;
-    }
-
-    final data = await DatabaseHelper.instance.getProductByBarcode(barcode);
-    if (data == null) return;
-    final product = Product.fromMap(data);
-
-    if (newQty > product.stock) return;
-
+  void updateQuantity(String barcode, num newQty) {
     state = [
       for (final item in state)
         if (item['barcode'] == barcode) { ...item, 'qty': newQty } else item
     ];
   }
 
-  void removeFromCart(String barcode) {
-    state = state.where((item) => item['barcode'] != barcode).toList();
-  }
-
+  void removeFromCart(String barcode) => state = state.where((item) => item['barcode'] != barcode).toList();
   void clear() => state = [];
 
-  Future<void> completeSale(String paymentMethod, {int? customerId}) async {
+  Future<void> completeSale(String paymentMethod, {String? customerId}) async {
     if (state.isEmpty) return;
 
     final double total = totalAmount;
     final double profit = totalProfit;
     final itemsSnapshot = List<Map<String, dynamic>>.from(state);
 
-    try {
-      await DatabaseHelper.instance.completeSale(
-        totalAmount: total,
-        totalProfit: profit,
-        items: itemsSnapshot,
-        paymentMethod: paymentMethod,
-        customerId: customerId,
-      );
+    await DatabaseHelper.instance.completeSale(
+      totalAmount: total,
+      totalProfit: profit,
+      items: itemsSnapshot,
+      paymentMethod: paymentMethod,
+    );
 
-      _printReceipt(itemsSnapshot, total, paymentMethod);
-
-      clear();
-      
-      // Provider'ları tazele
-      ref.read(productsProvider.notifier).loadProducts();
-      ref.invalidate(salesHistoryProvider);
-      ref.invalidate(weeklySalesProvider);
-      ref.invalidate(todayStatsProvider);
-      ref.invalidate(stockLogsProvider);
-      ref.invalidate(customersProvider);
-      
-    } catch (e) {
-      debugPrint("SATIŞ HATASI: $e");
-      rethrow;
+    // Müşteri seçildiyse borcuna işle (Hive)
+    if (customerId != null && paymentMethod == "VERESİYE") {
+      ref.read(customerProvider.notifier).updateBalance(customerId, total);
     }
+
+    _printReceipt(itemsSnapshot, total, paymentMethod);
+    clear();
+    _refreshAll();
+  }
+
+  void _refreshAll() {
+    ref.read(productsProvider.notifier).loadProducts();
+    ref.invalidate(salesHistoryProvider);
+    ref.invalidate(todayStatsProvider);
+    ref.invalidate(weeklySalesProvider);
   }
 
   void _printReceipt(List items, double total, String method) async {
@@ -281,12 +315,12 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         'items': items,
         'totalAmount': total,
         'paymentMethod': method,
-        'storeName': 'BERK MARKET',
+        'storeName': ref.read(storeInfoProvider).name,
       };
       final bytes = await PrinterService.createReceipt(receiptData);
       await PrinterService.printReceipt(bytes);
     } catch (e) {
-      debugPrint("Yazdırma Hatası: $e");
+      debugPrint("Yazıcı Hatası: $e");
     }
   }
 }
