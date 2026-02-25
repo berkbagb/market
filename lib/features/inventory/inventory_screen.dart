@@ -152,7 +152,7 @@ class InventoryScreen extends ConsumerWidget {
                   barcode: barcode,
                   buyPrice: 0,
                   sellPrice: double.tryParse(priceC.text) ?? 0,
-                  stock: int.tryParse(stockC.text) ?? 0,
+                  stock: double.tryParse(stockC.text) ?? 0.0,
                   minStockLevel: 5, taxRate: 20, unit: "Adet", category: "Genel",
                 );
                 await ref.read(productsProvider.notifier).addProduct(p);

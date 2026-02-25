@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:market/models/customer_model.dart';
+import 'package:market/core/models/customer_model.dart';
 
 class CustomerCard extends StatelessWidget {
   final Customer customer;

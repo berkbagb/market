@@ -72,8 +72,8 @@ class _AddProductDialogState extends ConsumerState<AddProductDialog> {
         category: _selectedCategory,
         buyPrice: buyPrice,
         sellPrice: sellPrice,
-        stock: stock.toInt(), 
-        minStockLevel: minStock.toInt(),
+        stock: stock.toDouble(), 
+        minStockLevel: minStock.toDouble(),
         unit: _selectedUnit,
         taxRate: _selectedTax.toDouble(),
       );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:market/features/pos/market_provider.dart';
+import 'package:market/features/customers/customer_provider.dart';
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -14,6 +15,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   final TextEditingController _barcodeController = TextEditingController();
   final FocusNode _barcodeFocusNode = FocusNode();
   final ScrollController _cartScrollController = ScrollController();
+  final TextEditingController _customerSearchController = TextEditingController();
 
   void _handleBarcodeSubmit(String value) async {
     if (value.isEmpty) return;
@@ -197,6 +199,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     );
   }
 
+  // HATANIN ÇÖZÜLDÜĞÜ YER BURASI:
   Widget _buildCheckoutSidebar(List<Map<String, dynamic>> cartItems, CartNotifier notifier, double taxRate) {
     final double total = notifier.totalAmount;
     final double netFiyat = total / (1 + (taxRate / 100));
@@ -208,10 +211,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         color: const Color(0xFF0F172A),
         border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
-      child: Padding(
+      child: SingleChildScrollView( // Kaydırma eklendi
         padding: const EdgeInsets.all(48),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Sıkışmayı önler
           children: [
             Text("ÖDEME DETAYI", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF6366F1), fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 11)),
             const SizedBox(height: 32),
@@ -225,25 +229,26 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             FittedBox(
               child: Text("${total.toStringAsFixed(2)} ₺", style: GoogleFonts.plusJakartaSans(fontSize: 68, fontWeight: FontWeight.w900, color: const Color(0xFF10B981), letterSpacing: -2)),
             ),
-            const Spacer(),
             
-            // --- ÖDEME BUTONLARI ---
+            // Spacer() yerine sabit boşluk kullanıldı:
+            const SizedBox(height: 48), 
+            
             _paymentActionBtn("NAKİT (F10)", Icons.payments_rounded, const Color(0xFF10B981), () => _handleComplete(cartItems, notifier, "NAKİT")),
             const SizedBox(height: 12),
             _paymentActionBtn("KREDİ KARTI (F11)", Icons.credit_card_rounded, const Color(0xFF6366F1), () => _handleComplete(cartItems, notifier, "KART")),
             const SizedBox(height: 12),
             
-            // YENİ: VERESİYE BUTONU
             SizedBox(
               width: double.infinity,
               height: 60,
               child: ElevatedButton.icon(
                 onPressed: cartItems.isEmpty ? null : () => _showCustomerSelectionDialog(context, ref, total),
                 icon: const Icon(Icons.person_search_rounded),
-                label: const Text("VERESİYE / BORÇ"),
+                label: const Text("VERESİYE / MÜŞTERİ"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.withOpacity(0.1),
                   foregroundColor: Colors.orange,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   side: const BorderSide(color: Colors.orange, width: 1),
                 ),
@@ -263,52 +268,132 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     );
   }
 
-  // --- MÜŞTERİ SEÇİM DİALOGU ---
   void _showCustomerSelectionDialog(BuildContext context, WidgetRef ref, double total) {
-    final customers = ref.watch(customerProvider);
-    
+    _customerSearchController.clear();
+    ref.read(customersProvider.notifier).refresh();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final customers = ref.watch(customersProvider);
+            
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F172A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28), side: const BorderSide(color: Colors.white10)),
+              title: Row(
+                children: [
+                  const Icon(Icons.people_alt_rounded, color: Colors.orange),
+                  const SizedBox(width: 12),
+                  Text("Veresiye İçin Müşteri Seç", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                ],
+              ),
+              content: SizedBox(
+                width: 500,
+                height: 600,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _customerSearchController,
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (val) => ref.read(customersProvider.notifier).refresh(query: val),
+                      decoration: InputDecoration(
+                        hintText: "Müşteri ara (İsim veya Tel)...",
+                        hintStyle: const TextStyle(color: Colors.white24),
+                        prefixIcon: const Icon(Icons.search, color: Colors.white24),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.05),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: customers.isEmpty 
+                      ? const Center(child: Text("Müşteri bulunamadı.", style: TextStyle(color: Colors.white24)))
+                      : ListView.separated(
+                          itemCount: customers.length,
+                          separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                          itemBuilder: (context, index) {
+                            final customer = customers[index];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              leading: CircleAvatar(
+                                backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                                child: Text(customer.name[0].toUpperCase(), style: const TextStyle(color: Color(0xFF6366F1))),
+                              ),
+                              title: Text(customer.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              subtitle: Text(customer.phone, style: const TextStyle(color: Colors.white38)),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text("${customer.balance.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                  const Text("Mevcut Borç", style: TextStyle(color: Colors.white24, fontSize: 10)),
+                                ],
+                              ),
+                              onTap: () {
+                                ref.read(customersProvider.notifier).addDebt(customer.id!, total);
+                                ref.read(cartProvider.notifier).clear();
+                                Navigator.pop(context);
+                                _showFeedback("${customer.name} hesabına borç işlendi.");
+                              },
+                            );
+                          },
+                        ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showAddCustomerDialog(context, ref),
+                        icon: const Icon(Icons.person_add_alt_1_rounded),
+                        label: const Text("Yeni Müşteri Oluştur"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: Text("Müşteri Seçin", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: SizedBox(
-          width: 450,
-          height: 500,
-          child: Column(
-            children: [
-              const Text("Seçilen müşterinin hesabına borç kaydedilecektir.", style: TextStyle(color: Colors.white38, fontSize: 12)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: customers.isEmpty 
-                ? const Center(child: Text("Kayıtlı müşteri yok!", style: TextStyle(color: Colors.white24)))
-                : ListView.separated(
-                    itemCount: customers.length,
-                    separatorBuilder: (_, __) => const Divider(color: Colors.white10),
-                    itemBuilder: (context, index) {
-                      final c = customers[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
-                          child: Text(c.name[0], style: const TextStyle(color: Color(0xFF6366F1))),
-                        ),
-                        title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        subtitle: Text(c.phone, style: const TextStyle(color: Colors.white38)),
-                        trailing: Text("${c.balance.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                        onTap: () {
-                          ref.read(customerProvider.notifier).updateBalance(c.id, total);
-                          ref.read(cartProvider.notifier).clear();
-                          Navigator.pop(context);
-                          _showFeedback("${c.name} hesabına borç işlendi.");
-                        },
-                      );
-                    },
-                  ),
-              ),
-            ],
-          ),
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text("Yeni Müşteri", style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Ad Soyad", labelStyle: TextStyle(color: Colors.white70)), style: const TextStyle(color: Colors.white)),
+            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: "Telefon", labelStyle: TextStyle(color: Colors.white70)), style: const TextStyle(color: Colors.white)),
+          ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("İptal")),
+          ElevatedButton(
+            onPressed: () {
+              if (nameCtrl.text.isNotEmpty) {
+                ref.read(customersProvider.notifier).addCustomer(nameCtrl.text, phoneCtrl.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text("Kaydet"),
+          ),
+        ],
       ),
     );
   }

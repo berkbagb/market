@@ -1,83 +1,89 @@
 class Product {
   final int? id;
-  final String name;
   final String barcode;
+  final String name;
   final double buyPrice;
   final double sellPrice;
-  final int stock;
-  final int minStockLevel;
-  final double taxRate;
-  final String unit;
+  final double stock;
+  final double minStockLevel;
   final String category;
+  final String unit;
+  final double taxRate;
+  final DateTime? createdAt;
 
   Product({
     this.id,
-    required this.name,
     required this.barcode,
+    required this.name,
     required this.buyPrice,
     required this.sellPrice,
     required this.stock,
-    required this.minStockLevel,
-    required this.taxRate,
-    required this.unit,
-    required this.category,
+    this.minStockLevel = 5.0,
+    this.category = 'Genel',
+    this.unit = 'Adet',
+    this.taxRate = 20.0,
+    this.createdAt,
   });
 
-  // HATAYI ÇÖZEN KISIM BURASI:
+  // HATA ÇÖZÜMÜ: copyWith metodu eksikti, ekledik.
   Product copyWith({
     int? id,
-    String? name,
     String? barcode,
+    String? name,
     double? buyPrice,
     double? sellPrice,
-    int? stock,
-    int? minStockLevel,
-    double? taxRate,
-    String? unit,
+    double? stock,
+    double? minStockLevel,
     String? category,
+    String? unit,
+    double? taxRate,
+    DateTime? createdAt,
   }) {
     return Product(
       id: id ?? this.id,
-      name: name ?? this.name,
       barcode: barcode ?? this.barcode,
+      name: name ?? this.name,
       buyPrice: buyPrice ?? this.buyPrice,
       sellPrice: sellPrice ?? this.sellPrice,
       stock: stock ?? this.stock,
       minStockLevel: minStockLevel ?? this.minStockLevel,
-      taxRate: taxRate ?? this.taxRate,
-      unit: unit ?? this.unit,
       category: category ?? this.category,
+      unit: unit ?? this.unit,
+      taxRate: taxRate ?? this.taxRate,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'name': name,
       'barcode': barcode,
+      'name': name,
       'buyPrice': buyPrice,
       'sellPrice': sellPrice,
       'stock': stock,
       'minStockLevel': minStockLevel,
-      'taxRate': taxRate,
-      'unit': unit,
       'category': category,
+      'unit': unit,
+      'taxRate': taxRate,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 
   factory Product.fromMap(Map<String, dynamic> map) {
-    // Burası hatanın çözüldüğü yer: Gelen veri num (double/int) ise toInt() veya toDouble() ile zorluyoruz
     return Product(
-      id: map['id'] as int?,
-      name: map['name']?.toString() ?? '',
-      barcode: map['barcode']?.toString() ?? '',
-      buyPrice: (map['buyPrice'] as num?)?.toDouble() ?? 0.0,
-      sellPrice: (map['sellPrice'] as num?)?.toDouble() ?? 0.0,
-      stock: (map['stock'] as num?)?.toInt() ?? 0,
-      minStockLevel: (map['minStockLevel'] as num?)?.toInt() ?? 0,
-      taxRate: (map['taxRate'] as num?)?.toDouble() ?? 0.0,
-      unit: map['unit']?.toString() ?? 'Adet',
-      category: map['category']?.toString() ?? 'Genel',
+      id: map['id'],
+      barcode: map['barcode'] ?? '',
+      name: map['name'] ?? '',
+      // HATA ÇÖZÜMÜ: num to double dönüşümü yapıldı
+      buyPrice: (map['buyPrice'] ?? 0.0).toDouble(),
+      sellPrice: (map['sellPrice'] ?? 0.0).toDouble(),
+      stock: (map['stock'] ?? 0.0).toDouble(),
+      minStockLevel: (map['minStockLevel'] ?? 0.0).toDouble(),
+      category: map['category'] ?? 'Genel',
+      unit: map['unit'] ?? 'Adet',
+      taxRate: (map['taxRate'] ?? 0.0).toDouble(),
+      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
     );
   }
 }

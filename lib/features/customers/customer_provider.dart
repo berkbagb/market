@@ -1,19 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:market/core/database_helper.dart';
-import 'package:market/models/customer_model.dart';
+import 'package:market/core/models/customer_model.dart';
 import 'dart:developer' as dev;
 
-/// Müşteri listesini yöneten merkezi Provider
+/// Global Provider
 final customersProvider = StateNotifierProvider<CustomerNotifier, List<Customer>>((ref) {
   return CustomerNotifier();
 });
 
 class CustomerNotifier extends StateNotifier<List<Customer>> {
   CustomerNotifier() : super([]) {
-    refresh();
+    refresh(); // Başlangıçta verileri çek
   }
 
-  /// Veritabanından müşterileri çeker ve state'i günceller
+  /// 1. Veritabanından Müşterileri Çek (Arama Destekli)
   Future<void> refresh({String? query}) async {
     try {
       final db = await DatabaseHelper.instance.database;
@@ -22,7 +22,6 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
       if (query == null || query.trim().isEmpty) {
         maps = await db.query('customers', orderBy: 'name ASC');
       } else {
-        // SQL Injection koruması için whereArgs kullanımı
         maps = await db.query(
           'customers',
           where: 'name LIKE ? OR phone LIKE ?',
@@ -33,19 +32,18 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
       
       state = maps.map((m) => Customer.fromMap(m)).toList();
     } catch (e) {
-      dev.log("Müşteri listesi çekilirken hata oluştu: $e");
-      // İsteğe bağlı olarak state = [] veya hata durumu eklenebilir
+      dev.log("Müşteri listesi çekilirken hata: $e");
     }
   }
 
-  /// Yeni müşteri ekler ve listeyi tazeler
+  /// 2. Yeni Müşteri Ekle
   Future<void> addCustomer(String name, String phone) async {
     try {
       final db = await DatabaseHelper.instance.database;
       await db.insert('customers', {
         'name': name.trim(),
         'phone': phone.trim(),
-        'points': 0.0, // Başlangıç puanı
+        'balance': 0.0,
         'createdAt': DateTime.now().toIso8601String(),
       });
       await refresh();
@@ -54,48 +52,66 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
     }
   }
 
-  /// Mevcut müşteriyi günceller
-  Future<void> updateCustomer(Customer customer) async {
+  /// 3. Müşteri Güncelle (Düzeltildi)
+  Future<void> updateCustomer(int id, String name, String phone) async {
     try {
       final db = await DatabaseHelper.instance.database;
       await db.update(
         'customers',
-        customer.toMap(),
+        {
+          'name': name.trim(),
+          'phone': phone.trim(),
+        },
         where: 'id = ?',
-        whereArgs: [customer.id],
+        whereArgs: [id],
       );
-      // Tüm listeyi çekmek yerine sadece state'i lokalde güncellemek performansı artırır
-      // Ancak veri tutarlılığı için refresh() en güvenli yoldur.
-      await refresh(); 
+      await refresh(); // Veritabanından güncel listeyi çek ve ekranı yenile
     } catch (e) {
       dev.log("Müşteri güncellenirken hata: $e");
     }
   }
 
-  /// Müşteriyi ID üzerinden siler
-  Future<void> deleteCustomer(int id) async {
+  /// 4. Veresiye Borcu Ekle/Düş (Ödeme Al)
+  Future<void> addDebt(int customerId, double amount) async {
     try {
       final db = await DatabaseHelper.instance.database;
-      await db.delete('customers', where: 'id = ?', whereArgs: [id]);
-      await refresh();
+      
+      // Mevcut müşteriyi bul
+      final List<Map<String, dynamic>> result = await db.query(
+        'customers',
+        where: 'id = ?',
+        whereArgs: [customerId],
+      );
+
+      if (result.isNotEmpty) {
+        double currentBalance = (result.first['balance'] as num).toDouble();
+        double newBalance = currentBalance + amount;
+
+        await db.update(
+          'customers',
+          {'balance': newBalance},
+          where: 'id = ?',
+          whereArgs: [customerId],
+        );
+        await refresh();
+      }
     } catch (e) {
-      dev.log("Müşteri silinirken hata: $e");
+      dev.log("Borç güncellenirken hata: $e");
     }
   }
 
-  /// Müşteriye puan ekleme/çıkarma (Sadakat Sistemi için)
-  Future<void> updatePoints(int id, double newPoints) async {
+  /// 5. Müşteri Sil (Düzeltildi)
+  Future<void> deleteCustomer(int id) async {
     try {
       final db = await DatabaseHelper.instance.database;
-      await db.update(
+      await db.delete(
         'customers',
-        {'points': newPoints},
         where: 'id = ?',
         whereArgs: [id],
       );
-      await refresh();
+      await refresh(); // Sildikten sonra listeyi tazele
     } catch (e) {
-      dev.log("Puan güncellenirken hata: $e");
+      dev.log("Müşteri silinirken hata: $e");
     }
   }
 }

@@ -11,8 +11,10 @@ import 'package:sqflite/sqflite.dart';
 // Sayfa importları
 import 'package:market/features/pos/pos_screen.dart'; 
 import 'package:market/features/inventory/inventory_screen.dart';
+
 import 'package:market/features/reports/reports_page.dart';
 import 'package:market/features/settings/settings_screen.dart';
+import 'package:market/features/customers/customer_screen.dart'; // Müşteriler sayfasını ekledik
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +48,8 @@ void main() async {
 
   // Veritabanı başlatma
   await Hive.initFlutter();
-  await Hive.openBox('customers'); 
+  // Hive.registerAdapter(CustomerAdapter());
+  // await Hive.openBox('customers'); 
 
   runApp(const ProviderScope(child: MarketApp()));
 }
@@ -87,12 +90,13 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  // Sayfalar Listesi
+  // Sayfalar Listesi - Tam 5 adet yapıldı
   final List<Widget> _pages = [
-    const PosScreen(),
-    const InventoryScreen(),
-    const ReportsPage(),
-    const SettingsScreen(),
+    const PosScreen(),       // index 0: Satış (POS)
+    const InventoryScreen(), // index 1: Stok
+    const ReportsPage(),     // index 2: Raporlar
+    const CustomerScreen(),  // index 3: Müşteriler (HATA BURADAYDI, EKSİKTİ)
+    const SettingsScreen(),  // index 4: Ayarlar
   ];
 
   @override
@@ -109,26 +113,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             _currentIndex = index;
           });
         },
+        // Alt taraftaki sıralama yukarıdaki _pages ile aynı olmalı
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.shopping_cart_outlined),
             selectedIcon: Icon(Icons.shopping_cart),
-            label: 'Satış (POS)',
+            label: 'Satış (POS)', // 0
           ),
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
-            label: 'Stok',
+            label: 'Stok', // 1
           ),
           NavigationDestination(
             icon: Icon(Icons.analytics_outlined),
             selectedIcon: Icon(Icons.analytics),
-            label: 'Raporlar',
+            label: 'Raporlar', // 2
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline), // Müşteriler butonu
+            selectedIcon: Icon(Icons.people),
+            label: 'Müşteriler', // 3
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
-            label: 'Ayarlar',
+            label: 'Ayarlar', // 4
           ),
         ],
       ),

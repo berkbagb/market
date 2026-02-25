@@ -50,11 +50,13 @@ class DatabaseHelper {
     ''');
 
     // 2. MÜŞTERİLER
+   // DatabaseHelper içindeki tablo oluşturma kısmı böyle olmalı:
     await db.execute('''
       CREATE TABLE customers (
-        id $idType,
-        name $textType,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
         phone TEXT,
+        balance REAL DEFAULT 0.0,
         points REAL DEFAULT 0.0,
         createdAt TEXT
       )
