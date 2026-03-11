@@ -6,52 +6,53 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite/sqflite.dart';
 
 // Sayfa importları
 import 'package:market/features/pos/pos_screen.dart'; 
 import 'package:market/features/inventory/inventory_screen.dart';
-
 import 'package:market/features/reports/reports_page.dart';
 import 'package:market/features/settings/settings_screen.dart';
-import 'package:market/features/customers/customer_screen.dart'; // Müşteriler sayfasını ekledik
+import 'package:market/features/customers/customer_screen.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Desktop: SQLite FFI motorunu başlat
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    try {
+  try {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
-    } catch (e) {
-      debugPrint('sqflite FFI init failed: $e');
     }
-  }
 
-  // Dil ayarları
-  await initializeDateFormatting('tr_TR', null);
+    await initializeDateFormatting('tr_TR', null);
 
-  // Pencere ayarları
-  await windowManager.ensureInitialized();
-  windowManager.waitUntilReadyToShow(
-    const WindowOptions(
+    await windowManager.ensureInitialized();
+    const windowOptions = WindowOptions(
       size: Size(1360, 850),
+      minimumSize: Size(1100, 750),
       center: true,
       title: "BERK MARKET - POS PRO",
-    ), 
-    () async {
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.normal,
+    );
+
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
-    }
-  );
+    });
 
-  // Veritabanı başlatma
-  await Hive.initFlutter();
-  // Hive.registerAdapter(CustomerAdapter());
-  // await Hive.openBox('customers'); 
+    await Hive.initFlutter();
+    await Hive.openBox('settings');
 
-  runApp(const ProviderScope(child: MarketApp()));
+    runApp(
+      const ProviderScope(
+        child: MarketApp(),
+      ),
+    );
+  } catch (e) {
+    debugPrint("UYGULAMA BAŞLATMA HATASI: $e");
+    runApp(MaterialApp(home: Scaffold(body: Center(child: Text("Hata: $e")))));
+  }
 }
 
 class MarketApp extends StatelessWidget {
@@ -62,19 +63,47 @@ class MarketApp extends StatelessWidget {
     return MaterialApp(
       title: 'Market POS Pro',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('tr', 'TR'),
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF020617),
+        
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF6366F1),
           brightness: Brightness.dark,
+          surface: const Color(0xFF0F172A),
+          primary: const Color(0xFF6366F1),
+          secondary: const Color(0xFF10B981),
         ),
+
         textTheme: GoogleFonts.plusJakartaSansTextTheme(
           ThemeData.dark().textTheme,
-        ).apply(bodyColor: Colors.white, displayColor: Colors.white),
+        ).apply(
+          bodyColor: const Color(0xFFE2E8F0), // Slate yerine elle renk verdik
+          displayColor: Colors.white,
+        ),
+
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: const Color(0xFF0F172A),
+          indicatorColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
+          height: 75,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: Color(0xFF6366F1), size: 28);
+            }
+            return const IconThemeData(color: Color(0xFF94A3B8));
+          }),
+        ),
+
+        // Hata düzeldi: CardThemeData kullanıldı
+        cardTheme: CardThemeData(
+          color: const Color(0xFF0F172A),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
       ),
-      locale: const Locale('tr', 'TR'),
       home: const MainNavigationScreen(), 
     );
   }
@@ -90,13 +119,12 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  // Sayfalar Listesi - Tam 5 adet yapıldı
   final List<Widget> _pages = [
-    const PosScreen(),       // index 0: Satış (POS)
-    const InventoryScreen(), // index 1: Stok
-    const ReportsPage(),     // index 2: Raporlar
-    const CustomerScreen(),  // index 3: Müşteriler (HATA BURADAYDI, EKSİKTİ)
-    const SettingsScreen(),  // index 4: Ayarlar
+    const PosScreen(),
+    const InventoryScreen(),
+    const ReportsPage(),
+    const CustomerScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -106,41 +134,43 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (int index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        // Alt taraftaki sıralama yukarıdaki _pages ile aynı olmalı
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.shopping_cart_outlined),
-            selectedIcon: Icon(Icons.shopping_cart),
-            label: 'Satış (POS)', // 0
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.05), width: 1),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Stok', // 1
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: 'Raporlar', // 2
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline), // Müşteriler butonu
-            selectedIcon: Icon(Icons.people),
-            label: 'Müşteriler', // 3
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Ayarlar', // 4
-          ),
-        ],
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) => setState(() => _currentIndex = index),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.storefront_outlined),
+              selectedIcon: Icon(Icons.storefront_rounded),
+              label: 'Satış (POS)',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.inventory_2_outlined),
+              selectedIcon: Icon(Icons.inventory_2_rounded),
+              label: 'Stok Yönetimi',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.analytics_outlined),
+              selectedIcon: Icon(Icons.analytics_rounded),
+              label: 'Raporlar',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline_rounded),
+              selectedIcon: Icon(Icons.people_rounded),
+              label: 'Müşteriler',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_suggest_outlined),
+              selectedIcon: Icon(Icons.settings_suggest_rounded),
+              label: 'Ayarlar',
+            ),
+          ],
+        ),
       ),
     );
   }

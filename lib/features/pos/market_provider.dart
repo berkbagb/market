@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:market/core/database_helper.dart';
 import 'package:market/core/models/product_model.dart';
 import 'package:market/core/printer_service.dart';
+import '../settings/settings_provider.dart';
 
 // --- GLOBAL PROVIDERS ---
 
@@ -17,6 +18,7 @@ final cartProvider = StateNotifierProvider<CartNotifier, List<Map<String, dynami
   return CartNotifier(ref);
 });
 
+// ProductsNotifier AsyncValue dönerken StateNotifierProvider tanımı düzeltildi
 final productsProvider = StateNotifierProvider<ProductsNotifier, AsyncValue<List<Product>>>((ref) {
   return ProductsNotifier();
 });
@@ -31,8 +33,8 @@ final stockLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
   return await DatabaseHelper.instance.getStockLogs();
 });
 
-// Günlük ciro ve kar özet provider'ı
 final todayStatsProvider = FutureProvider<Map<String, double>>((ref) async {
+  // watch yerine read kullanımı veya invalidation sonrası güncellenen veriyi çekmek için
   final allSales = await ref.watch(salesHistoryProvider.future);
   final now = DateTime.now();
   
@@ -54,7 +56,6 @@ final todayStatsProvider = FutureProvider<Map<String, double>>((ref) async {
   return {'revenue': revenue, 'profit': profit};
 });
 
-// Haftalık grafik verisi
 final weeklySalesProvider = FutureProvider<List<double>>((ref) async {
   final allSales = await ref.watch(salesHistoryProvider.future);
   final now = DateTime.now();
@@ -75,24 +76,6 @@ final weeklySalesProvider = FutureProvider<List<double>>((ref) async {
 
 // --- MODELS ---
 
-class StoreInfo {
-  final String name;
-  final String phone;
-  final String address;
-  final String footerNote;
-
-  StoreInfo({required this.name, required this.phone, required this.address, required this.footerNote});
-
-  StoreInfo copyWith({String? name, String? phone, String? address, String? footerNote}) {
-    return StoreInfo(
-      name: name ?? this.name,
-      phone: phone ?? this.phone,
-      address: address ?? this.address,
-      footerNote: footerNote ?? this.footerNote,
-    );
-  }
-}
-
 class Customer {
   final String id;
   final String name;
@@ -104,7 +87,7 @@ class Customer {
   Map<String, dynamic> toMap() => {'id': id, 'name': name, 'phone': phone, 'balance': balance};
 
   factory Customer.fromMap(Map<dynamic, dynamic> map) => Customer(
-    id: map['id'], 
+    id: map['id'].toString(), 
     name: map['name'], 
     phone: map['phone'], 
     balance: (map['balance'] as num).toDouble(),
@@ -115,15 +98,6 @@ class Customer {
   );
 }
 
-// --- STORE INFO PROVIDER ---
-final storeInfoProvider = StateProvider<StoreInfo>((ref) => StoreInfo(
-  name: "BERK MARKET",
-  phone: "05XX XXX XX XX",
-  address: "Merkez/İstanbul",
-  footerNote: "Bizi tercih ettiğiniz için teşekkürler!",
-));
-
-// --- PRODUCTS NOTIFIER ---
 // --- PRODUCTS NOTIFIER ---
 class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
   List<Product> _allProducts = [];
@@ -143,7 +117,6 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
     }
   }
 
-  /// Arama işlemi
   void filterProducts(String query) {
     if (query.isEmpty) {
       state = AsyncValue.data(_allProducts);
@@ -157,49 +130,35 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
     }
   }
 
-  // --- EKSİK OLAN VE HATAYA SEBEP OLAN METODLAR BURADA ---
-
   Future<void> addProduct(Product product) async {
-    try {
-      await DatabaseHelper.instance.insertProduct(product.toMap());
-      await loadProducts(); // Listeyi yeniden yükle ki ekranda hemen görünsün
-    } catch (e) {
-      debugPrint("Ürün ekleme hatası: $e");
-      rethrow;
-    }
+    await DatabaseHelper.instance.insertProduct(product.toMap());
+    await loadProducts();
   }
 
   Future<void> updateProduct(Product product) async {
-    try {
-      if (product.id != null) {
-        await DatabaseHelper.instance.updateProduct(product.toMap());
-        await loadProducts(); // Güncel halini çek
-      }
-    } catch (e) {
-      debugPrint("Ürün güncelleme hatası: $e");
-      rethrow;
+    if (product.id != null) {
+      await DatabaseHelper.instance.updateProduct(product.toMap());
+      await loadProducts();
     }
   }
 
   Future<void> deleteProduct(int id) async {
-    try {
-      await DatabaseHelper.instance.deleteProduct(id);
-      await loadProducts(); // Silindikten sonra listeyi tazele
-    } catch (e) {
-      debugPrint("Ürün silme hatası: $e");
-      rethrow;
-    }
+    await DatabaseHelper.instance.deleteProduct(id);
+    await loadProducts();
   }
 }
-// --- CUSTOMER NOTIFIER (HIVE) ---
+
+// --- CUSTOMER NOTIFIER ---
 class CustomerNotifier extends StateNotifier<List<Customer>> {
   CustomerNotifier() : super([]) { _loadFromHive(); }
 
-  final _box = Hive.box('customers');
+  Box get _box => Hive.box('settings');
 
   void _loadFromHive() {
-    final data = _box.values.map((e) => Customer.fromMap(e)).toList();
-    state = data;
+    final dynamic data = _box.get('customerList');
+    if (data != null && data is List) {
+      state = data.map((e) => Customer.fromMap(Map<dynamic, dynamic>.from(e))).toList();
+    }
   }
 
   void addCustomer(String name, String phone) {
@@ -209,20 +168,19 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
       phone: phone,
     );
     state = [...state, newCustomer];
-    _box.put(newCustomer.id, newCustomer.toMap());
+    _saveToHive();
   }
 
   void updateBalance(String id, double amount) {
     state = [
       for (final c in state)
-        if (c.id == id) _updateAndSave(c, amount) else c
+        if (c.id == id) c.copyWith(balance: c.balance + amount) else c
     ];
+    _saveToHive();
   }
 
-  Customer _updateAndSave(Customer c, double amount) {
-    final updated = c.copyWith(balance: c.balance + amount);
-    _box.put(updated.id, updated.toMap());
-    return updated;
+  void _saveToHive() {
+    _box.put('customerList', state.map((e) => e.toMap()).toList());
   }
 }
 
@@ -236,15 +194,16 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   CartNotifier(this.ref) : super([]);
 
   double get totalAmount => state.fold(0.0, (sum, item) => sum + (item['price'] * item['qty']));
+  
   double get totalProfit => state.fold(0.0, (sum, item) {
     final buyPrice = (item['buyPrice'] as num?)?.toDouble() ?? 0.0;
-    return sum + ((item['price'] - buyPrice) * item['qty']);
+    return sum + (((item['price'] as num).toDouble() - buyPrice) * item['qty']);
   });
 
   Future<bool> addToCart(String barcode) async {
     final data = await DatabaseHelper.instance.getProductByBarcode(barcode);
     if (data == null) return false;
-    
+
     final product = Product.fromMap(data);
     final index = state.indexWhere((item) => item['barcode'] == barcode);
     final currentInCart = index != -1 ? (state[index]['qty'] as num).toDouble() : 0.0;
@@ -262,13 +221,20 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         'name': product.name,
         'price': product.sellPrice,
         'buyPrice': product.buyPrice,
-        'qty': 1,
+        'qty': 1.0,
       }];
     }
     return true;
   }
 
-  void updateQuantity(String barcode, num newQty) {
+  Future<bool> checkStock(String barcode, double requestedQty) async {
+    final data = await DatabaseHelper.instance.getProductByBarcode(barcode);
+    if (data == null) return false;
+    final product = Product.fromMap(data);
+    return (product.stock as num).toDouble() >= requestedQty;
+  }
+
+  void updateQuantity(String barcode, double newQty) {
     state = [
       for (final item in state)
         if (item['barcode'] == barcode) { ...item, 'qty': newQty } else item
@@ -281,25 +247,34 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   Future<void> completeSale(String paymentMethod, {String? customerId}) async {
     if (state.isEmpty) return;
 
-    final double total = totalAmount;
-    final double profit = totalProfit;
-    final itemsSnapshot = List<Map<String, dynamic>>.from(state);
+    try {
+      final double total = totalAmount;
+      final double profit = totalProfit;
+      final itemsSnapshot = List<Map<String, dynamic>>.from(state);
 
-    await DatabaseHelper.instance.completeSale(
-      totalAmount: total,
-      totalProfit: profit,
-      items: itemsSnapshot,
-      paymentMethod: paymentMethod,
-    );
+      // Veritabanı işlemleri
+      await DatabaseHelper.instance.completeSale(
+        totalAmount: total,
+        totalProfit: profit,
+        items: itemsSnapshot,
+        paymentMethod: paymentMethod,
+      );
 
-    // Müşteri seçildiyse borcuna işle (Hive)
-    if (customerId != null && paymentMethod == "VERESİYE") {
-      ref.read(customerProvider.notifier).updateBalance(customerId, total);
+      // Veresiye ise bakiyeyi güncelle
+      if (paymentMethod == "VERESİYE" && customerId != null) {
+        ref.read(customerProvider.notifier).updateBalance(customerId, total);
+      }
+
+      // Yazıcıya gönder
+      await _printReceipt(itemsSnapshot, total, paymentMethod);
+
+      clear();
+      _refreshAll();
+      
+    } catch (e) {
+      debugPrint("SATIŞ TAMAMLAMA HATASI: $e");
+      rethrow;
     }
-
-    _printReceipt(itemsSnapshot, total, paymentMethod);
-    clear();
-    _refreshAll();
   }
 
   void _refreshAll() {
@@ -309,13 +284,18 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     ref.invalidate(weeklySalesProvider);
   }
 
-  void _printReceipt(List items, double total, String method) async {
+  Future<void> _printReceipt(List items, double total, String method) async {
     try {
+      final store = ref.read(settingsProvider);
+      
       final receiptData = {
         'items': items,
         'totalAmount': total,
         'paymentMethod': method,
-        'storeName': ref.read(storeInfoProvider).name,
+        'storeName': store.name,
+        'address': store.address,
+        'phone': store.phone,
+        'footer': store.footerNote,
       };
       final bytes = await PrinterService.createReceipt(receiptData);
       await PrinterService.printReceipt(bytes);

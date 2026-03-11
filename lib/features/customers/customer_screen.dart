@@ -182,6 +182,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:market/features/customers/customer_provider.dart';
+import 'package:market/core/database_helper.dart';
 
 class CustomerScreen extends ConsumerWidget {
   const CustomerScreen({super.key});
@@ -371,36 +372,43 @@ class CustomerScreen extends ConsumerWidget {
     );
   }
 
-  void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
-        title: const Text("Yeni Müşteri Ekle", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Ad Soyad", labelStyle: TextStyle(color: Colors.white60)), style: const TextStyle(color: Colors.white)),
-            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: "Telefon", labelStyle: TextStyle(color: Colors.white60)), style: const TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("İptal")),
-          ElevatedButton(
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty) {
-                ref.read(customersProvider.notifier).addCustomer(nameCtrl.text, phoneCtrl.text);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text("Müşteriyi Kaydet"),
-          ),
+  // Veresiye sekmesindeki FloatingActionButton veya Üst Buton için:
+void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text("Yeni Müşteri Ekle"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(controller: nameController, decoration: const InputDecoration(labelText: "Ad Soyad")),
+          TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Telefon")),
         ],
       ),
-    );
-  }
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Vazgeç")),
+        ElevatedButton(
+          onPressed: () async {
+            if (nameController.text.isNotEmpty) {
+              await DatabaseHelper.instance.insertCustomer({
+                'name': nameController.text,
+                'phone': phoneController.text,
+                'balance': 0.0,
+              });
+              Navigator.pop(ctx);
+              // Burada müşteri listesini yenileme (refresh) tetiklenmeli
+              // ref.refresh(customersProvider); 
+            }
+          },
+          child: const Text("Kaydet"),
+        ),
+      ],
+    ),
+  );
+}
 
   // Mavi butona tıklandığında bu fonksiyon çalışacak
 void _showEditCustomerDialog(BuildContext context, WidgetRef ref, dynamic customer) {

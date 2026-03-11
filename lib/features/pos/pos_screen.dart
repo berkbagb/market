@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:market/features/pos/market_provider.dart';
-import 'package:market/features/customers/customer_provider.dart';
+// Doğru provider ve model dosyalarını import ettiğinden emin ol
+import 'package:market/features/pos/market_provider.dart'; 
+import 'package:market/features/settings/settings_provider.dart';
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -19,16 +20,16 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   void _handleBarcodeSubmit(String value) async {
     if (value.isEmpty) return;
+    
     final success = await ref.read(cartProvider.notifier).addToCart(value);
+    
     if (!success) {
-      _showFeedback("Ürün bulunamadı!", isError: true);
+      _showFeedback("Ürün bulunamadı veya yetersiz stok!", isError: true);
     } else {
       _scrollToBottom();
     }
     _barcodeController.clear();
-    Future.microtask(() {
-      if (mounted) _barcodeFocusNode.requestFocus();
-    });
+    _barcodeFocusNode.requestFocus();
   }
 
   void _scrollToBottom() {
@@ -44,6 +45,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   }
 
   void _showFeedback(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -68,7 +70,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final cartItems = ref.watch(cartProvider);
     final cartNotifier = ref.watch(cartProvider.notifier);
     final activeTax = ref.watch(globalTaxProvider);
-    final store = ref.watch(storeInfoProvider);
+    // DÜZELTME: storeInfoProvider yerine settingsProvider kullanıyoruz
+    final store = ref.watch(settingsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF020617),
@@ -94,7 +97,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     );
   }
 
-  Widget _buildTopBar(StoreInfo store) {
+  // StoreInfo tipini settings_provider'daki modelle eşledik
+  Widget _buildTopBar(dynamic store) {
     return Container(
       padding: const EdgeInsets.fromLTRB(32, 48, 32, 24),
       child: Row(
@@ -192,14 +196,26 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   Widget _buildQuantityControls(Map item, CartNotifier notifier) {
     return Row(
       children: [
-        IconButton(onPressed: () => notifier.updateQuantity(item['barcode'], (item['qty'] - 1).clamp(1, 99)), icon: const Icon(Icons.remove, color: Color(0xFF6366F1))),
+        IconButton(
+          onPressed: () => notifier.updateQuantity(item['barcode'], (item['qty'] - 1).clamp(1.0, 99.0)), 
+          icon: const Icon(Icons.remove, color: Color(0xFF6366F1))
+        ),
         Text("${item['qty']}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        IconButton(onPressed: () => notifier.updateQuantity(item['barcode'], item['qty'] + 1), icon: const Icon(Icons.add, color: Color(0xFF6366F1))),
+        IconButton(
+          onPressed: () async {
+            final hasStock = await notifier.checkStock(item['barcode'], (item['qty'] as num).toDouble() + 1);
+            if (hasStock) {
+              notifier.updateQuantity(item['barcode'], item['qty'] + 1);
+            } else {
+              _showFeedback("Daha fazla stok yok!", isError: true);
+            }
+          }, 
+          icon: const Icon(Icons.add, color: Color(0xFF6366F1))
+        ),
       ],
     );
   }
 
-  // HATANIN ÇÖZÜLDÜĞÜ YER BURASI:
   Widget _buildCheckoutSidebar(List<Map<String, dynamic>> cartItems, CartNotifier notifier, double taxRate) {
     final double total = notifier.totalAmount;
     final double netFiyat = total / (1 + (taxRate / 100));
@@ -211,11 +227,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         color: const Color(0xFF0F172A),
         border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
-      child: SingleChildScrollView( // Kaydırma eklendi
+      child: SingleChildScrollView( 
         padding: const EdgeInsets.all(48),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // Sıkışmayı önler
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text("ÖDEME DETAYI", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF6366F1), fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 11)),
             const SizedBox(height: 32),
@@ -229,15 +245,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             FittedBox(
               child: Text("${total.toStringAsFixed(2)} ₺", style: GoogleFonts.plusJakartaSans(fontSize: 68, fontWeight: FontWeight.w900, color: const Color(0xFF10B981), letterSpacing: -2)),
             ),
-            
-            // Spacer() yerine sabit boşluk kullanıldı:
             const SizedBox(height: 48), 
-            
             _paymentActionBtn("NAKİT (F10)", Icons.payments_rounded, const Color(0xFF10B981), () => _handleComplete(cartItems, notifier, "NAKİT")),
             const SizedBox(height: 12),
             _paymentActionBtn("KREDİ KARTI (F11)", Icons.credit_card_rounded, const Color(0xFF6366F1), () => _handleComplete(cartItems, notifier, "KART")),
             const SizedBox(height: 12),
-            
             SizedBox(
               width: double.infinity,
               height: 60,
@@ -254,7 +266,6 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(height: 24),
             Center(
               child: TextButton(
@@ -270,14 +281,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   void _showCustomerSelectionDialog(BuildContext context, WidgetRef ref, double total) {
     _customerSearchController.clear();
-    ref.read(customersProvider.notifier).refresh();
-
+    
     showDialog(
       context: context,
       builder: (context) {
         return Consumer(
           builder: (context, ref, child) {
-            final customers = ref.watch(customersProvider);
+            final customers = ref.watch(customerProvider); 
             
             return AlertDialog(
               backgroundColor: const Color(0xFF0F172A),
@@ -286,7 +296,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 children: [
                   const Icon(Icons.people_alt_rounded, color: Colors.orange),
                   const SizedBox(width: 12),
-                  Text("Veresiye İçin Müşteri Seç", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text("Müşteri Seç", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 ],
               ),
               content: SizedBox(
@@ -297,9 +307,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     TextField(
                       controller: _customerSearchController,
                       style: const TextStyle(color: Colors.white),
-                      onChanged: (val) => ref.read(customersProvider.notifier).refresh(query: val),
                       decoration: InputDecoration(
-                        hintText: "Müşteri ara (İsim veya Tel)...",
+                        hintText: "Müşteri ara...",
                         hintStyle: const TextStyle(color: Colors.white24),
                         prefixIcon: const Icon(Icons.search, color: Colors.white24),
                         filled: true,
@@ -310,7 +319,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     const SizedBox(height: 16),
                     Expanded(
                       child: customers.isEmpty 
-                      ? const Center(child: Text("Müşteri bulunamadı.", style: TextStyle(color: Colors.white24)))
+                      ? const Center(child: Text("Müşteri listesi boş.", style: TextStyle(color: Colors.white24)))
                       : ListView.separated(
                           itemCount: customers.length,
                           separatorBuilder: (_, __) => const Divider(color: Colors.white10),
@@ -324,19 +333,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                               ),
                               title: Text(customer.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                               subtitle: Text(customer.phone, style: const TextStyle(color: Colors.white38)),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text("${customer.balance.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                                  const Text("Mevcut Borç", style: TextStyle(color: Colors.white24, fontSize: 10)),
-                                ],
-                              ),
-                              onTap: () {
-                                ref.read(customersProvider.notifier).addDebt(customer.id!, total);
-                                ref.read(cartProvider.notifier).clear();
-                                Navigator.pop(context);
-                                _showFeedback("${customer.name} hesabına borç işlendi.");
+                              trailing: Text("${customer.balance.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                              onTap: () async {
+                                final nav = Navigator.of(context);
+                                await ref.read(cartProvider.notifier).completeSale("VERESİYE", customerId: customer.id);
+                                if (mounted) {
+                                  nav.pop();
+                                  _showFeedback("${customer.name} hesabına işlendi.");
+                                }
                               },
                             );
                           },
@@ -387,7 +391,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           ElevatedButton(
             onPressed: () {
               if (nameCtrl.text.isNotEmpty) {
-                ref.read(customersProvider.notifier).addCustomer(nameCtrl.text, phoneCtrl.text);
+                ref.read(customerProvider.notifier).addCustomer(nameCtrl.text, phoneCtrl.text);
                 Navigator.pop(context);
               }
             },

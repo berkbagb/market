@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:market/features/pos/market_provider.dart';
+import 'package:market/features/pos/market_provider.dart'; 
+import 'package:market/features/settings/settings_provider.dart'; 
 
 class SummaryScreen extends ConsumerWidget {
   const SummaryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Verileri Provider'lardan çekiyoruz
+    // Verileri Yeni Yapıdan Çekiyoruz
     final productsAsync = ref.watch(productsProvider);
     final currentTax = ref.watch(globalTaxProvider);
     final customers = ref.watch(customerProvider);
@@ -95,7 +96,13 @@ class SummaryScreen extends ConsumerWidget {
           _settingTile(Icons.store, "Mağaza Bilgileri", "İsim, Telefon ve Fiş Notu", () => _showStoreInfoDialog(context, ref)),
           _settingTile(Icons.percent, "Vergi Ayarları", "KDV Oranını Güncelle", () => _showTaxSettingsDialog(context, ref)),
           const Divider(color: Colors.white10, height: 40),
-          _settingTile(Icons.delete_sweep, "Verileri Sıfırla", "Tüm kayıtları kalıcı olarak siler", () {}, isDestructive: true),
+          _settingTile(
+            Icons.delete_sweep, 
+            "Sistemi Sıfırla", 
+            "Tüm kayıtları kalıcı olarak siler", 
+            () => _showResetDialog(context, ref), 
+            isDestructive: true
+          ),
         ],
       ),
     );
@@ -151,7 +158,11 @@ class SummaryScreen extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
-                  CircleAvatar(radius: 15, backgroundColor: Colors.orange.withOpacity(0.1), child: Text(c.name[0], style: const TextStyle(color: Colors.orange, fontSize: 12))),
+                  CircleAvatar(
+                    radius: 15, 
+                    backgroundColor: Colors.orange.withValues(alpha: 0.1), 
+                    child: Text(c.name[0], style: const TextStyle(color: Colors.orange, fontSize: 12))
+                  ),
                   const SizedBox(width: 12),
                   Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                   const Spacer(),
@@ -166,7 +177,7 @@ class SummaryScreen extends ConsumerWidget {
 
   // --- YARDIMCI METOTLAR (DİALOGLAR) ---
   void _showStoreInfoDialog(BuildContext context, WidgetRef ref) {
-    final currentStore = ref.read(storeInfoProvider);
+    final currentStore = ref.read(settingsProvider);
     final nameC = TextEditingController(text: currentStore.name);
     final phoneC = TextEditingController(text: currentStore.phone);
     final addrC = TextEditingController(text: currentStore.address);
@@ -177,21 +188,27 @@ class SummaryScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1D2D),
         title: const Text("Mağaza Bilgileri", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _dialogInput(nameC, "Mağaza Adı"),
-            _dialogInput(phoneC, "Telefon"),
-            _dialogInput(addrC, "Adres"),
-            _dialogInput(footerC, "Fiş Alt Notu"),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _dialogInput(nameC, "Mağaza Adı"),
+              _dialogInput(phoneC, "Telefon"),
+              _dialogInput(addrC, "Adres"),
+              _dialogInput(footerC, "Fiş Alt Notu"),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Vazgeç")),
           ElevatedButton(
             onPressed: () {
-              ref.read(storeInfoProvider.notifier).state = currentStore.copyWith(
-                name: nameC.text, phone: phoneC.text, address: addrC.text, footerNote: footerC.text,
+              // Hata düzeldi: Provider içindeki yeni metod ismi kullanıldı
+              ref.read(settingsProvider.notifier).updateSettings(
+                name: nameC.text, 
+                phone: phoneC.text, 
+                address: addrC.text, 
+                footerNote: footerC.text,
               );
               Navigator.pop(context);
             },
@@ -229,6 +246,33 @@ class SummaryScreen extends ConsumerWidget {
     );
   }
 
+  void _showResetDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D2D),
+        title: const Text("SİSTEMİ SIFIRLA?", style: TextStyle(color: Colors.red)),
+        content: const Text("Tüm ürünler, satışlar ve ayarlar silinecek. Bu işlem geri alınamaz!", style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İPTAL")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              final success = await ref.read(settingsProvider.notifier).resetEntireSystem();
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sistem tamamen sıfırlandı.")));
+                }
+              }
+            }, 
+            child: const Text("EVET, HER ŞEYİ SİL")
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _dialogInput(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
@@ -252,7 +296,11 @@ class SummaryScreen extends ConsumerWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(15), border: Border.all(color: color.withOpacity(0.1))),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A), 
+          borderRadius: BorderRadius.circular(15), 
+          border: Border.all(color: color.withValues(alpha: 0.1))
+        ),
         child: Row(
           children: [
             Icon(icon, color: color, size: 24),
