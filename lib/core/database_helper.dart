@@ -157,65 +157,56 @@ class DatabaseHelper {
   // --- SATIŞ İŞLEMLERİ (TRANSACTION) ---
 
   Future<void> completeSale({
-    required double totalAmount,
-    required double totalProfit,
-    required List<Map<String, dynamic>> items,
-    required String paymentMethod,
-    int? customerId,
-  }) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      final saleId = await txn.insert('sales', {
-        'customerId': customerId,
-        'totalAmount': totalAmount,
-        'totalProfit': totalProfit,
-        'paymentMethod': paymentMethod.toUpperCase(),
-        'isReturned': 0,
-        'createdAt': DateTime.now().toIso8601String(),
+  required double totalAmount,
+  required double totalProfit,
+  required List<Map<String, dynamic>> items,
+  required String paymentMethod,
+  int? customerId,
+}) async {
+  final db = await instance.database;
+  await db.transaction((txn) async {
+    // 1. Satışı Kaydet
+    final saleId = await txn.insert('sales', {
+      'totalAmount': totalAmount,
+      'totalProfit': totalProfit,
+      'paymentMethod': paymentMethod,
+      'customerId': customerId,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+
+    for (var item in items) {
+      // 2. Satış Detaylarını Kaydet
+      await txn.insert('sale_items', {
+        'saleId': saleId,
+        'productBarcode': item['barcode'],
+        'quantity': item['qty'],
+        'price': item['price'],
       });
 
-      if (paymentMethod == 'VERESİYE' && customerId != null) {
-        await txn.rawUpdate(
-          'UPDATE customers SET balance = balance + ? WHERE id = ?',
-          [totalAmount, customerId]
-        );
-      }
+      // 3. STOKTAN DÜŞ (Hata Buradaydı!)
+      await txn.rawUpdate(
+        'UPDATE products SET stock = stock - ? WHERE barcode = ?',
+        [item['qty'], item['barcode']]
+      );
 
-      for (var item in items) {
-        final List<Map<String, dynamic>> p = await txn.query(
-          'products', 
-          columns: ['stock'], 
-          where: 'barcode = ?', 
-          whereArgs: [item['barcode']]
-        );
-        
-        double currentStock = p.isNotEmpty ? (p.first['stock'] as num).toDouble() : 0.0;
+      // 4. Stok Logu Ekle
+      await txn.insert('stock_logs', {
+        'productBarcode': item['barcode'],
+        'changeAmount': -item['qty'],
+        'type': 'SALE',
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    }
 
-        await txn.insert('sale_items', {
-          'saleId': saleId,
-          'productBarcode': item['barcode'],
-          'productName': item['name'],
-          'quantity': item['qty'],
-          'price': item['price'],
-          'buyPriceAtSale': item['buyPrice'] ?? 0.0,
-        });
-
-        await txn.rawUpdate(
-          'UPDATE products SET stock = stock - ? WHERE barcode = ?', 
-          [item['qty'], item['barcode']]
-        );
-
-        await txn.insert('stock_logs', {
-          'productBarcode': item['barcode'],
-          'oldStock': currentStock,
-          'newStock': currentStock - (item['qty'] as num).toDouble(),
-          'changeAmount': item['qty'],
-          'type': 'SATIŞ',
-          'createdAt': DateTime.now().toIso8601String(),
-        });
-      }
-    });
-  }
+    // 5. Veresiye ise Müşteri Bakiyesini Güncelle
+    if (paymentMethod == "VERESİYE" && customerId != null) {
+      await txn.rawUpdate(
+        'UPDATE customers SET balance = balance + ? WHERE id = ?',
+        [totalAmount, customerId]
+      );
+    }
+  });
+}
 
   // --- RAPORLAMA VE EKSTRA SORGULAR ---
 

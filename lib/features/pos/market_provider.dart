@@ -182,33 +182,28 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   void clear() => state = [];
 
   Future<void> completeSale(String paymentMethod, {int? customerId}) async {
-    if (state.isEmpty) return;
-    try {
-      final String method = paymentMethod.trim().toUpperCase();
-      final double total = totalAmount;
-      final double profit = totalProfit;
-      final itemsSnapshot = List<Map<String, dynamic>>.from(state);
+  // Ödeme yöntemini mutlaka büyük harf yapıp temizliyoruz
+  final String cleanMethod = paymentMethod.trim().toUpperCase();
 
-      await DatabaseHelper.instance.completeSale(
-        totalAmount: total,
-        totalProfit: profit,
-        items: itemsSnapshot,
-        paymentMethod: method,
-        customerId: method == "VERESİYE" ? customerId : null,
-      );
-
-      if (method == "VERESİYE") {
-        await ref.read(customersProvider.notifier).refresh();
-      }
-
-      await _printReceipt(itemsSnapshot, total, method);
-      clear();
-      _refreshGlobalProviders();
-    } catch (e) {
-      dev.log("SATIŞ TAMAMLAMA HATASI: $e");
-      rethrow;
-    }
-  }
+  await DatabaseHelper.instance.completeSale(
+    totalAmount: totalAmount,
+    totalProfit: totalProfit,
+    items: List<Map<String, dynamic>>.from(state),
+    paymentMethod: cleanMethod, // "K.KARTI", "NAKİT" veya "VERESİYE"
+    customerId: cleanMethod == "VERESİYE" ? customerId : null,
+  );
+  clear(); // Sepeti temizle
+  // VERİLERİ ZORLA TAZELE (Zurnanın zırt dediği yer)
+  ref.invalidate(salesHistoryProvider);
+  ref.invalidate(productsProvider); 
+  ref.invalidate(todayStatsProvider);
+  ref.invalidate(customersProvider); // Müşteri listesini ve bakiyesini tazeler
+  
+  // Eğer özel bir customerProvider kullanıyorsan onu da tetikle
+  await ref.read(customersProvider.notifier).refresh;
+  state = []; // Sepeti temizle
+  ref.invalidate(salesHistoryProvider); // Dashboard'u tazele
+}
 
   void _refreshGlobalProviders() {
     ref.read(productsProvider.notifier).loadProducts();
