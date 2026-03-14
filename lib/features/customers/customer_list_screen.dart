@@ -131,7 +131,7 @@ class CustomerListScreen extends ConsumerWidget {
               final miktar = double.tryParse(amountController.text) ?? 0;
               if (miktar > 0) {
                 // Borçtan düşme işlemi (Negatif miktar gönderiyoruz)
-                ref.read(customersProvider.notifier).addDebt(customer.id!, -miktar);
+                ref.read(customersProvider.notifier).updateBalance(customer.id!, -miktar);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tahsilat başarıyla kaydedildi.")));
               }

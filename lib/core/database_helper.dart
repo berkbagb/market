@@ -169,7 +169,7 @@ class DatabaseHelper {
         'customerId': customerId,
         'totalAmount': totalAmount,
         'totalProfit': totalProfit,
-        'paymentMethod': paymentMethod,
+        'paymentMethod': paymentMethod.toUpperCase(),
         'isReturned': 0,
         'createdAt': DateTime.now().toIso8601String(),
       });
@@ -224,6 +224,17 @@ class DatabaseHelper {
     return await db.query('sales', orderBy: 'createdAt DESC');
   }
 
+  Future<List<Map<String, dynamic>>> getWeeklySales() async {
+    final db = await instance.database;
+    // Son 7 günün satışlarını getirir
+    return await db.rawQuery('''
+      SELECT date(createdAt) as date, SUM(totalAmount) as total 
+      FROM sales 
+      WHERE createdAt >= date('now', '-7 days')
+      GROUP BY date(createdAt)
+    ''');
+  }
+
   Future<List<Map<String, dynamic>>> getAllCategories() async {
     final db = await database;
     return await db.rawQuery('SELECT DISTINCT category FROM products WHERE category IS NOT NULL');
@@ -260,5 +271,9 @@ class DatabaseHelper {
       debugPrint("Sıfırlama Hatası: $e");
       rethrow;
     }
+  }
+  Future<List<Map<String, dynamic>>> getCustomers() async {
+  final db = await instance.database;
+  return await db.query('customers', orderBy: 'name ASC');
   }
 }

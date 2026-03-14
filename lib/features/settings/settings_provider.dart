@@ -99,6 +99,8 @@ class SettingsNotifier extends StateNotifier<StoreInfo> {
       // Daha önce hiç şifre belirlenmemişse '1234' ile giriş yapmasına izin ver
       return input == "1234";
     }
+
+    debugPrint("Kaydedilmiş şifre: $savedPass, Girilen şifre: $input");
     
     return input == (savedPass as String);
   }

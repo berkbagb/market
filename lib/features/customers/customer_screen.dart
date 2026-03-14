@@ -361,7 +361,7 @@ class CustomerScreen extends ConsumerWidget {
             onPressed: () {
               final amount = double.tryParse(amountCtrl.text) ?? 0;
               if (amount > 0) {
-                ref.read(customersProvider.notifier).addDebt(customer.id!, -amount); // Borcu azaltmak için eksi değer
+                ref.read(customersProvider.notifier).updateBalance(customer.id!, -amount); // Borcu azaltmak için eksi değer
                 Navigator.pop(context);
               }
             },

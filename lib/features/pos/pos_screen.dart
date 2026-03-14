@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-// Doğru provider ve model dosyalarını import ettiğinden emin ol
 import 'package:market/features/pos/market_provider.dart'; 
 import 'package:market/features/settings/settings_provider.dart';
+// Yeni müşteri provider'ını ekledik
+import 'package:market/features/customers/customer_provider.dart'; 
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -20,9 +21,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   void _handleBarcodeSubmit(String value) async {
     if (value.isEmpty) return;
-    
     final success = await ref.read(cartProvider.notifier).addToCart(value);
-    
     if (!success) {
       _showFeedback("Ürün bulunamadı veya yetersiz stok!", isError: true);
     } else {
@@ -70,7 +69,6 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final cartItems = ref.watch(cartProvider);
     final cartNotifier = ref.watch(cartProvider.notifier);
     final activeTax = ref.watch(globalTaxProvider);
-    // DÜZELTME: storeInfoProvider yerine settingsProvider kullanıyoruz
     final store = ref.watch(settingsProvider);
 
     return Scaffold(
@@ -97,7 +95,6 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     );
   }
 
-  // StoreInfo tipini settings_provider'daki modelle eşledik
   Widget _buildTopBar(dynamic store) {
     return Container(
       padding: const EdgeInsets.fromLTRB(32, 48, 32, 24),
@@ -227,11 +224,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         color: const Color(0xFF0F172A),
         border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
-      child: SingleChildScrollView( 
+      child: Padding(
         padding: const EdgeInsets.all(48),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
             Text("ÖDEME DETAYI", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF6366F1), fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 11)),
             const SizedBox(height: 32),
@@ -245,27 +241,32 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             FittedBox(
               child: Text("${total.toStringAsFixed(2)} ₺", style: GoogleFonts.plusJakartaSans(fontSize: 68, fontWeight: FontWeight.w900, color: const Color(0xFF10B981), letterSpacing: -2)),
             ),
-            const SizedBox(height: 48), 
-            _paymentActionBtn("NAKİT (F10)", Icons.payments_rounded, const Color(0xFF10B981), () => _handleComplete(cartItems, notifier, "NAKİT")),
+            const Spacer(), 
+            _paymentActionBtn("NAKİT (F10)", Icons.payments_rounded, const Color(0xFF10B981), 
+              () => _handleComplete(cartItems, notifier, "NAKİT")),            const SizedBox(height: 12),
             const SizedBox(height: 12),
-            _paymentActionBtn("KREDİ KARTI (F11)", Icons.credit_card_rounded, const Color(0xFF6366F1), () => _handleComplete(cartItems, notifier, "KART")),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton.icon(
-                onPressed: cartItems.isEmpty ? null : () => _showCustomerSelectionDialog(context, ref, total),
-                icon: const Icon(Icons.person_search_rounded),
-                label: const Text("VERESİYE / MÜŞTERİ"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.withOpacity(0.1),
-                  foregroundColor: Colors.orange,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  side: const BorderSide(color: Colors.orange, width: 1),
+
+              _paymentActionBtn("KREDİ KARTI (F11)", Icons.credit_card_rounded, const Color(0xFF6366F1), 
+                  () => _handleComplete(cartItems, notifier, "K.KARTI")), // Buradaki metne dikkat!
+              
+              const SizedBox(height: 12),
+              
+              // Sadece TEK bir Veresiye butonu kalsın
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton.icon(
+                  onPressed: cartItems.isEmpty ? null : () => _showCustomerSelectionDialog(context, ref, total),
+                  icon: const Icon(Icons.person_search_rounded),
+                  label: const Text("VERESİYE / MÜŞTERİ SEÇ"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.withOpacity(0.1),
+                    foregroundColor: Colors.orange,
+                    side: const BorderSide(color: Colors.orange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 24),
             Center(
               child: TextButton(
@@ -281,13 +282,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   void _showCustomerSelectionDialog(BuildContext context, WidgetRef ref, double total) {
     _customerSearchController.clear();
-    
+    // Diyalog açılınca listeyi bir kez tazele
+    ref.read(customersProvider.notifier).refresh();
+
     showDialog(
       context: context,
       builder: (context) {
         return Consumer(
           builder: (context, ref, child) {
-            final customers = ref.watch(customerProvider); 
+            final customers = ref.watch(customersProvider); 
             
             return AlertDialog(
               backgroundColor: const Color(0xFF0F172A),
@@ -301,14 +304,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               ),
               content: SizedBox(
                 width: 500,
-                height: 600,
+                height: 500,
                 child: Column(
                   children: [
                     TextField(
                       controller: _customerSearchController,
                       style: const TextStyle(color: Colors.white),
+                      onChanged: (val) => ref.read(customersProvider.notifier).refresh(query: val),
                       decoration: InputDecoration(
-                        hintText: "Müşteri ara...",
+                        hintText: "İsim veya telefon ile ara...",
                         hintStyle: const TextStyle(color: Colors.white24),
                         prefixIcon: const Icon(Icons.search, color: Colors.white24),
                         filled: true,
@@ -319,7 +323,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     const SizedBox(height: 16),
                     Expanded(
                       child: customers.isEmpty 
-                      ? const Center(child: Text("Müşteri listesi boş.", style: TextStyle(color: Colors.white24)))
+                      ? const Center(child: Text("Müşteri bulunamadı.", style: TextStyle(color: Colors.white24)))
                       : ListView.separated(
                           itemCount: customers.length,
                           separatorBuilder: (_, __) => const Divider(color: Colors.white10),
@@ -336,11 +340,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                               trailing: Text("${customer.balance.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                               onTap: () async {
                                 final nav = Navigator.of(context);
+                                // completeSale metodu artık customerId bekliyor
                                 await ref.read(cartProvider.notifier).completeSale("VERESİYE", customerId: customer.id);
-                                if (mounted) {
-                                  nav.pop();
-                                  _showFeedback("${customer.name} hesabına işlendi.");
-                                }
+                                nav.pop();
+                                _showFeedback("${customer.name} hesabına borç kaydedildi.");
                               },
                             );
                           },
@@ -389,10 +392,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("İptal")),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (nameCtrl.text.isNotEmpty) {
-                ref.read(customerProvider.notifier).addCustomer(nameCtrl.text, phoneCtrl.text);
-                Navigator.pop(context);
+                await ref.read(customersProvider.notifier).addCustomer(nameCtrl.text, phoneCtrl.text);
+                if (context.mounted) Navigator.pop(context);
               }
             },
             child: const Text("Kaydet"),
