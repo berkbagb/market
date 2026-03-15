@@ -12,73 +12,96 @@ class SummaryScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF020617),
       appBar: AppBar(
-        title: const Text("İşletme Analizi", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "İşletme Analizi",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () => ref.invalidate(salesHistoryProvider),
-          )
-        ],
       ),
       body: salesAsync.when(
         data: (sales) {
-          // 1. DEĞİŞKENLERİ SIFIRLA
-          double n = 0.0;
-          double k = 0.0;
-          double v = 0.0;
+          // --- 1. ADIM: VERİLERİ HAVUZDA TOPLA ---
+          double nakitHavuzu = 0.0;
+          double kartHavuzu = 0.0;
+          double veresiyeHavuzu = 0.0;
 
-          // 2. VERİLERİ GRUPLA
           for (var s in sales) {
-            String m = (s['paymentMethod'] ?? "NAKİT").toString().toUpperCase();
+            String m = (s['paymentMethod'] ?? "NAKİT")
+                .toString()
+                .toUpperCase()
+                .trim();
             double amt = (s['totalAmount'] as num).toDouble();
-            
-            if (m.contains("KART") || m == "K.KARTI") {
-              k += amt;
-            } else if (m.contains("VERESİYE")) {
-              v += amt;
+
+            if (m == "NAKİT" || m == "NAKIT") {
+              nakitHavuzu += amt;
+            } else if (m.contains("KART")) {
+              kartHavuzu += amt;
+            } else if (m == "VERESİYE" || m == "VERESIYE") {
+              veresiyeHavuzu += amt;
             } else {
-              n += amt;
+              // EĞER "a" GİBİ TANINMAYAN BİR ŞEY GELİRSE:
+              // Yeni satır açma, git Nakit havuzuna ekle!
+              nakitHavuzu += amt;
             }
           }
 
-          // 3. EKRANA BAS
+          // --- 2. ADIM: EKRANA SADECE 3 WIDGET BAS ---
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "ÖDEME DAĞILIMI", 
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.1)
+                  "ÖDEME DAĞILIMI",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 20),
-                
-                // BURADA SADECE 3 TANE SABİT SATIR VAR
-                _buildStaticRow("Nakit Tahsilat", n, Colors.greenAccent, Icons.payments),
-                const SizedBox(height: 15),
-                _buildStaticRow("Kredi Kartı", k, Colors.blueAccent, Icons.credit_card),
-                const SizedBox(height: 15),
-                _buildStaticRow("Veresiye / Borç", v, Colors.orangeAccent, Icons.handshake),
-                
-                const SizedBox(height: 30),
-                const Text(
-                  "HIZLI AKSİYONLAR", 
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+
+                // BURADA DÖNGÜ YOK! SADECE 3 TANE SABİT FONKSİYON ÇAĞRISI VAR.
+                _buildStaticRow(
+                  "Nakit Tahsilat",
+                  nakitHavuzu,
+                  Colors.greenAccent,
+                  Icons.payments,
                 ),
-                // Buraya diğer butonlarını (Z Raporu vs.) ekleyebilirsin
+                const SizedBox(height: 15),
+                _buildStaticRow(
+                  "Kredi Kartı",
+                  kartHavuzu,
+                  Colors.blueAccent,
+                  Icons.credit_card,
+                ),
+                const SizedBox(height: 15),
+                _buildStaticRow(
+                  "Veresiye / Borç",
+                  veresiyeHavuzu,
+                  Colors.orangeAccent,
+                  Icons.handshake,
+                ),
+
+                // NOT: Eğer bu satırın altında hala bir şeyler çıkıyorsa,
+                // dosyanın devamında kalmış eski bir .map veya ListView var demektir.
+                // Lütfen dosyanın sonuna kadar başka Column elemanı kalmadığına emin ol.
               ],
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Colors.blueAccent)),
-        error: (e, s) => Center(child: Text("Hata oluştu: $e", style: const TextStyle(color: Colors.red))),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text("Hata: $e")),
       ),
     );
   }
 
-  Widget _buildStaticRow(String title, double amount, Color color, IconData icon) {
+  Widget _buildStaticRow(
+    String title,
+    double amount,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -87,27 +110,30 @@ class SummaryScreen extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 30),
+          Icon(icon, color: color, size: 28),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                Text(title, style: const TextStyle(color: Colors.white70)),
                 const SizedBox(height: 8),
                 LinearProgressIndicator(
-                  value: amount > 0 ? 0.8 : 0.0, 
+                  value: amount > 0 ? 0.7 : 0.0,
                   color: color,
                   backgroundColor: Colors.white10,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(10),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 20),
-          Text("${amount.toStringAsFixed(2)} ₺", 
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(
+            "${amount.toStringAsFixed(2)} ₺",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );

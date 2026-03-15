@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:market/core/database_helper.dart';
 // BU IMPORTU KESİNLİKLE EKLE, DİĞERİNİ SİL:
-import 'package:market/features/customers/customer_provider.dart'; 
+import 'package:market/features/customers/customer_provider.dart';
 import 'package:market/core/models/product_model.dart';
 import 'package:market/core/printer_service.dart';
 import '../settings/settings_provider.dart';
@@ -12,33 +12,38 @@ import 'dart:developer' as dev;
 
 final searchQueryProvider = StateProvider<String>((ref) => "");
 
-final categoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final categoryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   return await DatabaseHelper.instance.getAllCategories();
 });
 
 // STOK LOGLARI
-final stockLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final stockLogsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final db = await DatabaseHelper.instance.database;
   return await db.query('stock_logs', orderBy: 'createdAt DESC');
 });
 
 // MÜŞTERİLER
 
-
 // ÜRÜNLER
-final productsProvider = StateNotifierProvider<ProductsNotifier, AsyncValue<List<Product>>>((ref) {
-  return ProductsNotifier();
-});
+final productsProvider =
+    StateNotifierProvider<ProductsNotifier, AsyncValue<List<Product>>>((ref) {
+      return ProductsNotifier();
+    });
 
 // SEPET
-final cartProvider = StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
-  return CartNotifier(ref);
-});
-
-
+final cartProvider =
+    StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
+      return CartNotifier(ref);
+    });
 
 // SATIŞ GEÇMİŞİ
-final salesHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final salesHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   return await DatabaseHelper.instance.getSalesHistory();
 });
 
@@ -54,7 +59,10 @@ final todayStatsProvider = FutureProvider<Map<String, double>>((ref) async {
   for (var sale in allSales) {
     if (sale['createdAt'] == null) continue;
     final date = DateTime.parse(sale['createdAt']);
-    if (date.year == now.year && date.month == now.month && date.day == now.day && sale['isReturned'] == 0) {
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day &&
+        sale['isReturned'] == 0) {
       revenue += (sale['totalAmount'] as num).toDouble();
       profit += (sale['totalProfit'] as num).toDouble();
     }
@@ -82,7 +90,9 @@ final weeklySalesProvider = FutureProvider<List<double>>((ref) async {
 // --- PRODUCTS NOTIFIER ---
 class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
   List<Product> _allProducts = [];
-  ProductsNotifier() : super(const AsyncValue.loading()) { loadProducts(); }
+  ProductsNotifier() : super(const AsyncValue.loading()) {
+    loadProducts();
+  }
 
   Future<void> loadProducts() async {
     try {
@@ -116,9 +126,13 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
       state = AsyncValue.data(_allProducts);
     } else {
       final lowerQuery = query.toLowerCase();
-      final filtered = _allProducts.where((p) => 
-        p.name.toLowerCase().contains(lowerQuery) || p.barcode.contains(lowerQuery)
-      ).toList();
+      final filtered = _allProducts
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(lowerQuery) ||
+                p.barcode.contains(lowerQuery),
+          )
+          .toList();
       state = AsyncValue.data(filtered);
     }
   }
@@ -126,13 +140,13 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<Product>>> {
 
 // --- CUSTOMER NOTIFIER ---
 
-
 // --- CART NOTIFIER ---
 class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   final Ref ref;
   CartNotifier(this.ref) : super([]);
 
-  double get totalAmount => state.fold(0.0, (sum, item) => sum + (item['price'] * item['qty']));
+  double get totalAmount =>
+      state.fold(0.0, (sum, item) => sum + (item['price'] * item['qty']));
   double get totalProfit => state.fold(0.0, (sum, item) {
     final buyPrice = (item['buyPrice'] as num?)?.toDouble() ?? 0.0;
     return sum + (((item['price'] as num).toDouble() - buyPrice) * item['qty']);
@@ -150,23 +164,31 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     if (data == null) return false;
     final product = Product.fromMap(data);
     final index = state.indexWhere((item) => item['barcode'] == barcode);
-    final currentInCart = index != -1 ? (state[index]['qty'] as num).toDouble() : 0.0;
+    final currentInCart = index != -1
+        ? (state[index]['qty'] as num).toDouble()
+        : 0.0;
 
     if ((product.stock as num).toDouble() <= currentInCart) return false;
 
     if (index != -1) {
       state = [
         for (int i = 0; i < state.length; i++)
-          if (i == index) { ...state[i], 'qty': state[i]['qty'] + 1 } else state[i]
+          if (i == index)
+            {...state[i], 'qty': state[i]['qty'] + 1}
+          else
+            state[i],
       ];
     } else {
-      state = [...state, {
-        'barcode': product.barcode,
-        'name': product.name,
-        'price': product.sellPrice,
-        'buyPrice': product.buyPrice,
-        'qty': 1.0,
-      }];
+      state = [
+        ...state,
+        {
+          'barcode': product.barcode,
+          'name': product.name,
+          'price': product.sellPrice,
+          'buyPrice': product.buyPrice,
+          'qty': 1.0,
+        },
+      ];
     }
     return true;
   }
@@ -174,36 +196,60 @@ class CartNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   void updateQuantity(String barcode, double newQty) {
     state = [
       for (final item in state)
-        if (item['barcode'] == barcode) { ...item, 'qty': newQty } else item
+        if (item['barcode'] == barcode) {...item, 'qty': newQty} else item,
     ];
   }
 
-  void removeFromCart(String barcode) => state = state.where((item) => item['barcode'] != barcode).toList();
+  void removeFromCart(String barcode) =>
+      state = state.where((item) => item['barcode'] != barcode).toList();
   void clear() => state = [];
 
   Future<void> completeSale(String paymentMethod, {int? customerId}) async {
-  // Ödeme yöntemini mutlaka büyük harf yapıp temizliyoruz
-  final String cleanMethod = paymentMethod.trim().toUpperCase();
+    if (state.isEmpty) return;
 
-  await DatabaseHelper.instance.completeSale(
-    totalAmount: totalAmount,
-    totalProfit: totalProfit,
-    items: List<Map<String, dynamic>>.from(state),
-    paymentMethod: cleanMethod, // "K.KARTI", "NAKİT" veya "VERESİYE"
-    customerId: cleanMethod == "VERESİYE" ? customerId : null,
-  );
-  clear(); // Sepeti temizle
-  // VERİLERİ ZORLA TAZELE (Zurnanın zırt dediği yer)
-  ref.invalidate(salesHistoryProvider);
-  ref.invalidate(productsProvider); 
-  ref.invalidate(todayStatsProvider);
-  ref.invalidate(customersProvider); // Müşteri listesini ve bakiyesini tazeler
-  
-  // Eğer özel bir customerProvider kullanıyorsan onu da tetikle
-  await ref.read(customersProvider.notifier).refresh;
-  state = []; // Sepeti temizle
-  ref.invalidate(salesHistoryProvider); // Dashboard'u tazele
-}
+    // 1. ÖDEME YÖNTEMİ KONTROLÜ (KRİTİK!)
+    // Dışarıdan gelen veriyi temizleyip "KREDİ KARTI", "VERESİYE" veya "NAKİT" yapıyoruz.
+    String finalMethod = paymentMethod.trim().toUpperCase();
+    if (finalMethod.contains("KART")) {
+      finalMethod = "KART";
+    } else if (finalMethod.contains("VERESİYE") ||
+        finalMethod.contains("BORÇ")) {
+      finalMethod = "VERESİYE";
+    } else {
+      finalMethod = "NAKİT";
+    }
+
+    // 2. KÂR HESAPLAMA (0.0 KALMASIN)
+    double totalProfit = state.fold(0.0, (sum, item) {
+      double sell = (item['price'] as num).toDouble();
+      double buy = (item['buyPrice'] as num).toDouble();
+      double qty = (item['qty'] as num).toDouble();
+      return sum + ((sell - buy) * qty);
+    });
+
+    // 3. VERİTABANINA GÖNDER
+    await DatabaseHelper.instance.completeSale(
+      totalAmount: totalAmount,
+      totalProfit: totalProfit, // Hesapladığımız gerçek kârı gönderiyoruz
+      items: List<Map<String, dynamic>>.from(state),
+      paymentMethod: finalMethod,
+      // Sadece "VERESİYE" ise müşteri ID'si gitsin, yoksa null gitmeli (Zırhlı kontrol)
+      customerId: finalMethod == "VERESİYE" ? customerId : null,
+    );
+
+    // 4. TEMİZLİK VE TAZELEME
+    state = []; // Sepeti temizle
+
+    // Tüm ekranların (Dashboard, Stok, Müşteri) anında güncellenmesini sağlar
+    ref.invalidate(salesHistoryProvider);
+    ref.invalidate(productsProvider);
+    ref.invalidate(customersProvider);
+    ref.invalidate(todayStatsProvider);
+    ref.invalidate(weeklySalesProvider);
+
+    // Müşteri listesini ve bakiyelerini (refresh metoduyla) tazele
+    await ref.read(customersProvider.notifier).refresh();
+  }
 
   void _refreshGlobalProviders() {
     ref.read(productsProvider.notifier).loadProducts();
