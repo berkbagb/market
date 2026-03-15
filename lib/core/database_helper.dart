@@ -100,6 +100,18 @@ class DatabaseHelper {
     ''');
   }
 
+  Future<List<Map<String, dynamic>>> getTopSellingProducts() async {
+    final db = await database;
+    // Satış detaylarından en çok adet satılan 3 ürünü bulur
+    return await db.rawQuery('''
+    SELECT productName, SUM(quantity) as totalQty 
+     justice FROM sale_items 
+    GROUP BY productBarcode 
+    ORDER BY totalQty DESC 
+    LIMIT 3
+  ''');
+  }
+
   // --- ÜRÜN İŞLEMLERİ ---
 
   Future<List<Map<String, dynamic>>> getAllProducts() async {
@@ -109,7 +121,11 @@ class DatabaseHelper {
 
   Future<Map<String, dynamic>?> getProductByBarcode(String barcode) async {
     final db = await database;
-    final res = await db.query('products', where: 'barcode = ?', whereArgs: [barcode]);
+    final res = await db.query(
+      'products',
+      where: 'barcode = ?',
+      whereArgs: [barcode],
+    );
     return res.isNotEmpty ? res.first : null;
   }
 
@@ -123,7 +139,12 @@ class DatabaseHelper {
 
   Future<int> updateProduct(Map<String, dynamic> row) async {
     final db = await database;
-    return await db.update('products', row, where: 'barcode = ?', whereArgs: [row['barcode']]);
+    return await db.update(
+      'products',
+      row,
+      where: 'barcode = ?',
+      whereArgs: [row['barcode']],
+    );
   }
 
   Future<int> deleteProduct(int id) async {
@@ -150,63 +171,63 @@ class DatabaseHelper {
     final db = await database;
     return await db.rawUpdate(
       'UPDATE customers SET balance = balance + ? WHERE id = ?',
-      [amount, customerId]
+      [amount, customerId],
     );
   }
 
   // --- SATIŞ İŞLEMLERİ (TRANSACTION) ---
 
   Future<void> completeSale({
-  required double totalAmount,
-  required double totalProfit,
-  required List<Map<String, dynamic>> items,
-  required String paymentMethod,
-  int? customerId,
-}) async {
-  final db = await instance.database;
-  await db.transaction((txn) async {
-    // 1. Satışı Kaydet
-    final saleId = await txn.insert('sales', {
-      'totalAmount': totalAmount,
-      'totalProfit': totalProfit,
-      'paymentMethod': paymentMethod,
-      'customerId': customerId,
-      'createdAt': DateTime.now().toIso8601String(),
-    });
-
-    for (var item in items) {
-      // 2. Satış Detaylarını Kaydet
-      await txn.insert('sale_items', {
-        'saleId': saleId,
-        'productBarcode': item['barcode'],
-        'quantity': item['qty'],
-        'price': item['price'],
-      });
-
-      // 3. STOKTAN DÜŞ (Hata Buradaydı!)
-      await txn.rawUpdate(
-        'UPDATE products SET stock = stock - ? WHERE barcode = ?',
-        [item['qty'], item['barcode']]
-      );
-
-      // 4. Stok Logu Ekle
-      await txn.insert('stock_logs', {
-        'productBarcode': item['barcode'],
-        'changeAmount': -item['qty'],
-        'type': 'SALE',
+    required double totalAmount,
+    required double totalProfit,
+    required List<Map<String, dynamic>> items,
+    required String paymentMethod,
+    int? customerId,
+  }) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // 1. Satışı Kaydet
+      final saleId = await txn.insert('sales', {
+        'totalAmount': totalAmount,
+        'totalProfit': totalProfit,
+        'paymentMethod': paymentMethod,
+        'customerId': customerId,
         'createdAt': DateTime.now().toIso8601String(),
       });
-    }
 
-    // 5. Veresiye ise Müşteri Bakiyesini Güncelle
-    if (paymentMethod == "VERESİYE" && customerId != null) {
-      await txn.rawUpdate(
-        'UPDATE customers SET balance = balance + ? WHERE id = ?',
-        [totalAmount, customerId]
-      );
-    }
-  });
-}
+      for (var item in items) {
+        // 2. Satış Detaylarını Kaydet
+        await txn.insert('sale_items', {
+          'saleId': saleId,
+          'productBarcode': item['barcode'],
+          'quantity': item['qty'],
+          'price': item['price'],
+        });
+
+        // 3. STOKTAN DÜŞ (Hata Buradaydı!)
+        await txn.rawUpdate(
+          'UPDATE products SET stock = stock - ? WHERE barcode = ?',
+          [item['qty'], item['barcode']],
+        );
+
+        // 4. Stok Logu Ekle
+        await txn.insert('stock_logs', {
+          'productBarcode': item['barcode'],
+          'changeAmount': -item['qty'],
+          'type': 'SALE',
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+      }
+
+      // 5. Veresiye ise Müşteri Bakiyesini Güncelle
+      if (paymentMethod == "VERESİYE" && customerId != null) {
+        await txn.rawUpdate(
+          'UPDATE customers SET balance = balance + ? WHERE id = ?',
+          [totalAmount, customerId],
+        );
+      }
+    });
+  }
 
   // --- RAPORLAMA VE EKSTRA SORGULAR ---
 
@@ -228,7 +249,9 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getAllCategories() async {
     final db = await database;
-    return await db.rawQuery('SELECT DISTINCT category FROM products WHERE category IS NOT NULL');
+    return await db.rawQuery(
+      'SELECT DISTINCT category FROM products WHERE category IS NOT NULL',
+    );
   }
 
   Future<List<Map<String, dynamic>>> getStockLogs() async {
@@ -255,7 +278,7 @@ class DatabaseHelper {
           await file.delete();
         }
       }
-      
+
       await Hive.deleteFromDisk();
       debugPrint("Sistem tamamen temizlendi.");
     } catch (e) {
@@ -263,8 +286,9 @@ class DatabaseHelper {
       rethrow;
     }
   }
+
   Future<List<Map<String, dynamic>>> getCustomers() async {
-  final db = await instance.database;
-  return await db.query('customers', orderBy: 'name ASC');
+    final db = await instance.database;
+    return await db.query('customers', orderBy: 'name ASC');
   }
 }

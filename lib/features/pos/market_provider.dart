@@ -34,6 +34,13 @@ final productsProvider =
       return ProductsNotifier();
     });
 
+final topProductsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  return await DatabaseHelper.instance.getTopSellingProducts();
+  // Not: getTopSellingProducts metodunu DatabaseHelper'a eklemiştik
+});
+
 // SEPET
 final cartProvider =
     StateNotifierProvider<CartNotifier, List<Map<String, dynamic>>>((ref) {
